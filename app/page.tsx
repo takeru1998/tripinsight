@@ -1004,12 +1004,12 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--app-bg)] text-slate-900">
+    <main className="trip-app min-h-screen bg-[var(--app-bg)] text-slate-900">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-4 sm:px-6 lg:px-8">
-        <header className="sticky top-0 z-20 -mx-4 border-b border-emerald-950/10 bg-[var(--app-bg)]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <header className="sticky top-0 z-20 -mx-4 border-b border-white/70 bg-white/75 px-4 py-3 shadow-sm backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="grid size-10 place-items-center rounded-lg bg-emerald-900 text-white shadow-sm">
+              <div className="grid size-10 place-items-center rounded-lg bg-gradient-to-br from-emerald-900 to-teal-700 text-white shadow-sm shadow-emerald-900/25">
                 <ShieldCheck className="size-5" />
               </div>
               <div>
@@ -1034,7 +1034,7 @@ export default function Home() {
         </header>
 
         <section className="grid gap-4 py-5 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+          <Card className="rounded-lg border-white/70 bg-[linear-gradient(135deg,#ffffff_0%,#f2faf6_54%,#e7f3f1_100%)] shadow-xl shadow-emerald-950/8">
             <CardContent className="space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
@@ -1065,7 +1065,7 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-                <div className="rounded-lg bg-emerald-950 px-5 py-4 text-right text-white">
+                <div className="rounded-lg bg-[linear-gradient(135deg,#052e2b_0%,#0f766e_100%)] px-5 py-4 text-right text-white shadow-lg shadow-emerald-950/20">
                   <p className="text-xs text-emerald-100">旅行総合スコア</p>
                   <p className="text-4xl font-semibold">{overallScore}</p>
                 </div>
@@ -1093,7 +1093,7 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-lg border-amber-300/60 bg-amber-50 shadow-sm">
+          <Card className="rounded-lg border-amber-200/80 bg-[linear-gradient(135deg,#fff8eb_0%,#fffbf2_100%)] shadow-xl shadow-amber-900/8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-amber-950">
                 <AlertTriangle className="size-5" />
@@ -1116,7 +1116,7 @@ export default function Home() {
           </Card>
         </section>
 
-        <nav className="no-scrollbar fixed inset-x-0 bottom-0 z-30 flex gap-1 overflow-x-auto border-t border-emerald-950/10 bg-white/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur sm:static sm:mx-0 sm:gap-2 sm:rounded-lg sm:border sm:px-4 sm:pb-2 sm:shadow-none">
+        <nav className="no-scrollbar fixed inset-x-0 bottom-0 z-30 flex gap-1 overflow-x-auto border-t border-emerald-950/10 bg-white/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:gap-2 sm:rounded-lg sm:border sm:border-white/70 sm:bg-white/70 sm:px-4 sm:pb-2 sm:shadow-sm">
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -2159,8 +2159,8 @@ export default function Home() {
                             className="mt-2 w-full bg-emerald-900 hover:bg-emerald-800"
                             onClick={() => showRiskPlanInTripDetail(riskDetailTrip)}
                           >
-                            <Umbrella className="size-4" />
-                            リスク回避プランを表示
+                            <Pencil className="size-4" />
+                            旅行プランを編集
                           </Button>
                         </CardContent>
                       </Card>
