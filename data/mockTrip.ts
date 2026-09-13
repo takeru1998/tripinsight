@@ -1,0 +1,111 @@
+import type {
+  Accommodation,
+  ItineraryItem,
+  Travel,
+  TravelReview,
+  UserTravelPreference,
+} from '@/types/tripcheck';
+
+export const mockPreference: UserTravelPreference = {
+  onsen: 5,
+  food: 4,
+  views: 4,
+  quiet: 5,
+  smallHotel: 4,
+  shortTransit: 3,
+  valueSatisfaction: 4,
+  manySights: 2,
+  slowTravel: 5,
+  carTolerance: 2,
+  crowdSensitive: 4,
+  lateRiser: 4,
+};
+
+export const mockTravel: Travel = {
+  id: 'travel-yuzawa-001',
+  name: '東京から新潟・越後湯沢1泊2日',
+  startDate: '2026-09-16',
+  endDate: '2026-09-17',
+  origin: '東京駅',
+  transport: '電車',
+  companion: '夫婦',
+  people: 2,
+  budget: 90000,
+  memo: '温泉でゆっくりしつつ、清津峡とカフェには行きたい。',
+};
+
+export const mockAccommodation: Accommodation = {
+  name: '雪見の湯 里山別邸',
+  location: '新潟県南魚沼郡湯沢町',
+  price: 54000,
+  checkIn: '15:00',
+  checkOut: '10:00',
+  dinner: '18:00',
+  breakfast: '08:00',
+  url: 'https://example.com/yukimi',
+  note: '客室数が少なく、露天風呂付き。駅から送迎あり。夕食時間は固定。',
+};
+
+export const mockItinerary: ItineraryItem[] = [
+  {
+    id: 'i1',
+    title: '東京駅出発',
+    place: '東京駅',
+    start: '08:00',
+    end: '09:25',
+    category: '移動',
+    priority: 5,
+    memo: '上越新幹線',
+  },
+  {
+    id: 'i2',
+    title: '越後湯沢駅で昼食',
+    place: '越後湯沢駅',
+    start: '11:30',
+    end: '12:25',
+    category: '食事',
+    priority: 4,
+    memo: '駅ナカが混む可能性あり',
+  },
+  {
+    id: 'i3',
+    title: '清津峡',
+    place: '清津峡渓谷トンネル',
+    start: '13:00',
+    end: '15:10',
+    category: '観光',
+    priority: 5,
+    memo: '雨天時は足元注意。予約枠確認。',
+  },
+  {
+    id: 'i4',
+    title: '温泉街カフェ',
+    place: '越後湯沢温泉街',
+    start: '15:30',
+    end: '16:25',
+    category: '休憩',
+    priority: 2,
+    memo: 'チェックイン前の余裕時間が短い',
+  },
+  {
+    id: 'i5',
+    title: '旅館チェックイン',
+    place: '雪見の湯 里山別邸',
+    start: '17:00',
+    end: '17:20',
+    category: '宿泊',
+    priority: 5,
+    memo: '夕食18:00固定',
+  },
+];
+
+export const mockReview: TravelReview = {
+  hotelSatisfaction: 5,
+  foodSatisfaction: 4,
+  sightseeingSatisfaction: 4,
+  transitFatigue: 2,
+  scheduleAmount: 3,
+  overallSatisfaction: 4,
+  good: '宿の静けさと露天風呂が特によかった。',
+  failed: '清津峡のあとに余裕がなく、カフェは短くなった。',
+};
