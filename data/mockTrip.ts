@@ -54,6 +54,7 @@ export const mockItinerary: ItineraryItem[] = [
     start: '08:00',
     end: '09:25',
     category: '移動',
+    transportMode: '電車',
     priority: 5,
     memo: '上越新幹線',
   },

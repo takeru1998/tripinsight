@@ -53,6 +53,7 @@ export type ItineraryItem = {
     | '宿泊'
     | '休憩'
     | 'その他';
+  transportMode?: '車' | '電車' | '飛行機' | '徒歩' | 'バス' | 'タクシー' | 'その他';
   priority: number;
   memo: string;
 };

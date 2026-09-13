@@ -84,6 +84,32 @@ const tabs = [
   'プロフィール',
 ];
 
+const timeOptions = Array.from({ length: 24 * 12 }, (_, index) => {
+  const hour = Math.floor(index / 12);
+  const minute = (index % 12) * 5;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+});
+
+const itineraryCategoryOptions: ItineraryItem['category'][] = [
+  '移動',
+  '食事',
+  '観光',
+  '温泉',
+  '宿泊',
+  '休憩',
+  'その他',
+];
+
+const transportModeOptions: NonNullable<ItineraryItem['transportMode']>[] = [
+  '車',
+  '電車',
+  '飛行機',
+  '徒歩',
+  'バス',
+  'タクシー',
+  'その他',
+];
+
 const reviewMetrics: Array<{
   label: string;
   key: keyof Pick<
@@ -148,6 +174,31 @@ function SelectField({
       {options.map((option) => (
         <option key={option} value={option}>
           {option}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function TimeSelect({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+}) {
+  return (
+    <select
+      aria-label={label}
+      className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
+      onChange={(event) => onChange(event.target.value)}
+      value={value}
+    >
+      {timeOptions.map((time) => (
+        <option key={time} value={time}>
+          {time}
         </option>
       ))}
     </select>
@@ -275,6 +326,7 @@ export default function Home() {
         start: '10:00',
         end: '11:00',
         category: '観光',
+        transportMode: '電車',
         priority: 3,
         memo: '',
       },
@@ -643,35 +695,64 @@ export default function Home() {
                     {itinerary.map((item) => (
                       <div
                         key={item.id}
-                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[88px_1fr_1fr_auto]"
+                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]"
                       >
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
+                          <FieldLabel>タイトル</FieldLabel>
                           <Input
-                            aria-label={`${item.title}開始時間`}
-                            value={item.start}
-                            onChange={(event) =>
-                              updateItinerary(item.id, { start: event.target.value })
-                            }
-                          />
-                          <Input
-                            aria-label={`${item.title}終了時間`}
-                            value={item.end}
-                            onChange={(event) =>
-                              updateItinerary(item.id, { end: event.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Input
+                            aria-label={`${item.title}タイトル`}
                             value={item.title}
                             onChange={(event) =>
                               updateItinerary(item.id, { title: event.target.value })
                             }
                           />
-                          <p className="flex items-center gap-1 text-xs text-slate-500">
-                            <MapPin className="size-3" />
-                            {item.place || '場所未入力'}
-                          </p>
+                        </div>
+                        <div className="space-y-1.5">
+                          <FieldLabel>項目</FieldLabel>
+                          <SelectField
+                            label={`${item.title}カテゴリ`}
+                            options={itineraryCategoryOptions}
+                            value={item.category}
+                            onChange={(value) =>
+                              updateItinerary(item.id, {
+                                category: value as ItineraryItem['category'],
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1.5">
+                            <FieldLabel>開始時間</FieldLabel>
+                            <TimeSelect
+                              label={`${item.title}開始時間`}
+                              value={item.start}
+                              onChange={(value) =>
+                                updateItinerary(item.id, { start: value })
+                              }
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <FieldLabel>終了時間</FieldLabel>
+                            <TimeSelect
+                              label={`${item.title}終了時間`}
+                              value={item.end}
+                              onChange={(value) =>
+                                updateItinerary(item.id, { end: value })
+                              }
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          aria-label={`${item.title}を削除`}
+                          className="self-end justify-self-end text-rose-700 hover:text-rose-800"
+                          onClick={() => removeItineraryItem(item.id)}
+                          size="icon"
+                          variant="ghost"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                        <div className="space-y-1.5">
+                          <FieldLabel>場所</FieldLabel>
                           <Input
                             aria-label={`${item.title}場所`}
                             placeholder="場所"
@@ -681,27 +762,30 @@ export default function Home() {
                             }
                           />
                         </div>
-                        <div className="grid gap-2">
-                          <SelectField
-                            label={`${item.title}カテゴリ`}
-                            options={[
-                              '移動',
-                              '食事',
-                              '観光',
-                              '温泉',
-                              '宿泊',
-                              '休憩',
-                              'その他',
-                            ]}
-                            value={item.category}
-                            onChange={(value) =>
-                              updateItinerary(item.id, {
-                                category: value as ItineraryItem['category'],
-                              })
-                            }
-                          />
+                        {item.category === '移動' && (
+                          <div className="space-y-1.5">
+                            <FieldLabel>移動手段</FieldLabel>
+                            <SelectField
+                              label={`${item.title}移動手段`}
+                              options={transportModeOptions}
+                              value={item.transportMode || '電車'}
+                              onChange={(value) =>
+                                updateItinerary(item.id, {
+                                  transportMode:
+                                    value as ItineraryItem['transportMode'],
+                                })
+                              }
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-slate-600">優先度</span>
+                            <span className="font-semibold text-emerald-800">
+                              {item.priority}
+                            </span>
+                          </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500">優先度</span>
                             <input
                               aria-label={`${item.title}優先度`}
                               className="w-full accent-emerald-800"
@@ -715,28 +799,20 @@ export default function Home() {
                               type="range"
                               value={item.priority}
                             />
-                            <span className="w-4 text-sm font-medium text-emerald-800">
-                              {item.priority}
-                            </span>
                           </div>
-                          <Input
-                            aria-label={`${item.title}メモ`}
-                            placeholder="メモ"
+                        </div>
+                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-4">
+                          <FieldLabel>備考</FieldLabel>
+                          <Textarea
+                            aria-label={`${item.title}備考`}
+                            className="min-h-24"
+                            placeholder="予約条件、混雑時の代替案、注意点など"
                             value={item.memo}
                             onChange={(event) =>
                               updateItinerary(item.id, { memo: event.target.value })
                             }
                           />
                         </div>
-                        <Button
-                          aria-label={`${item.title}を削除`}
-                          className="self-start text-rose-700 hover:text-rose-800"
-                          onClick={() => removeItineraryItem(item.id)}
-                          size="icon"
-                          variant="ghost"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
                       </div>
                     ))}
                   </CardContent>
