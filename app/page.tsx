@@ -319,6 +319,9 @@ export default function Home() {
   const [itinerary, setItinerary] = useState<ItineraryItem[]>(mockItinerary);
   const [review, setReview] = useState<TravelReview>(mockReview);
   const [improved, setImproved] = useState(false);
+  const [previousItinerary, setPreviousItinerary] = useState<
+    ItineraryItem[] | null
+  >(null);
   const [saveState, setSaveState] = useState('端末内に自動保存');
 
   useEffect(() => {
@@ -407,12 +410,14 @@ export default function Home() {
     setItinerary(mockItinerary);
     setReview(mockReview);
     setImproved(false);
+    setPreviousItinerary(null);
     setSaveState('モック旅行に戻しました');
   }
 
   function applyImprovement() {
-    setItinerary((items) =>
-      items.map((item) => {
+    setPreviousItinerary(itinerary);
+    setItinerary(
+      itinerary.map((item) => {
         if (item.title === '清津峡') return { ...item, end: '14:50' };
         if (item.title === '温泉街カフェ') {
           return { ...item, start: '15:05', end: '15:45' };
@@ -424,6 +429,13 @@ export default function Home() {
       }),
     );
     setImproved(true);
+  }
+
+  function undoImprovement() {
+    if (!previousItinerary) return;
+    setItinerary(previousItinerary);
+    setPreviousItinerary(null);
+    setImproved(false);
   }
 
   return (
@@ -883,13 +895,23 @@ export default function Home() {
                       <p>清津峡の滞在を90分から70分へ変更</p>
                       <p>宿到着予定を16:30へ前倒し</p>
                     </div>
-                    <Button
-                      className="bg-teal-800 hover:bg-teal-700"
-                      onClick={applyImprovement}
-                    >
-                      <Check className="size-4" />
-                      改善案を採用
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        className="bg-teal-800 hover:bg-teal-700"
+                        onClick={applyImprovement}
+                      >
+                        <Check className="size-4" />
+                        改善案を採用
+                      </Button>
+                      <Button
+                        disabled={!previousItinerary}
+                        onClick={undoImprovement}
+                        variant="outline"
+                      >
+                        <RotateCcw className="size-4" />
+                        元に戻す
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
