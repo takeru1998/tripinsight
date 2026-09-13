@@ -226,6 +226,44 @@ const transportModeOptions: NonNullable<ItineraryItem['transportMode']>[] = [
   'その他',
 ];
 
+type ItineraryImprovementId =
+  | 'cafe-time'
+  | 'kiyotsukyo-stay'
+  | 'early-checkin';
+
+const itineraryImprovementOptions: Array<{
+  id: ItineraryImprovementId;
+  title: string;
+  detail: string;
+  apply: (item: ItineraryItem) => ItineraryItem;
+}> = [
+  {
+    id: 'cafe-time',
+    title: 'カフェ時間を調整',
+    detail: 'カフェを15:30から15:05へ変更し、滞在を短縮',
+    apply: (item) =>
+      item.title === '温泉街カフェ'
+        ? { ...item, start: '15:05', end: '15:45' }
+        : item,
+  },
+  {
+    id: 'kiyotsukyo-stay',
+    title: '観光滞在を短縮',
+    detail: '清津峡の滞在を90分から70分へ変更',
+    apply: (item) =>
+      item.title === '清津峡' ? { ...item, end: '14:50' } : item,
+  },
+  {
+    id: 'early-checkin',
+    title: '宿到着を前倒し',
+    detail: '宿到着予定を16:30へ前倒し',
+    apply: (item) =>
+      item.title === '旅館チェックイン'
+        ? { ...item, start: '16:30', end: '16:50' }
+        : item,
+  },
+];
+
 const reviewMetrics: Array<{
   label: string;
   key: keyof Pick<
@@ -642,6 +680,8 @@ export default function Home() {
   const [previousItinerary, setPreviousItinerary] = useState<
     ItineraryItem[] | null
   >(null);
+  const [selectedImprovementId, setSelectedImprovementId] =
+    useState<ItineraryImprovementId | null>(null);
   const [saveState, setSaveState] = useState('端末内に自動保存');
 
   useEffect(() => {
@@ -822,8 +862,6 @@ export default function Home() {
       });
   }, [trips, tripFilter, tripSort]);
   const remainingDays = daysUntil(topTravel.startDate);
-  const improvedScore = Math.min(96, itineraryDiagnosis.score + 17);
-
   function updatePreference(key: PreferenceKey, value: number) {
     setPreference((current) => ({ ...current, [key]: value }));
   }
@@ -869,6 +907,7 @@ export default function Home() {
     setRiskPlanTripId(null);
     setImproved(false);
     setPreviousItinerary(null);
+    setSelectedImprovementId(null);
     setSaveState('モック旅行に戻しました');
   }
 
@@ -885,6 +924,7 @@ export default function Home() {
     setDetailTripId(null);
     setRiskPlanTripId(null);
     setPreviousItinerary(null);
+    setSelectedImprovementId(null);
     setImproved(false);
     setActiveTab('旅行登録');
     setSaveState('新規旅行を作成中');
@@ -927,6 +967,7 @@ export default function Home() {
     setSelectedTripId(record.id);
     setDetailTripId(record.id);
     setPreviousItinerary(null);
+    setSelectedImprovementId(null);
     setImproved(false);
     setActiveTab('旅行登録');
     setSaveState(`${record.travel.name}を表示中`);
@@ -964,6 +1005,7 @@ export default function Home() {
     setDetailTripId(record.id);
     setDetailReturnTab(returnTab);
     setPreviousItinerary(null);
+    setSelectedImprovementId(null);
     setImproved(false);
     setActiveTab('旅行詳細');
     setSaveState(`${record.travel.name}の詳細を表示中`);
@@ -975,19 +1017,13 @@ export default function Home() {
   }
 
   function applyImprovement() {
-    setPreviousItinerary(itinerary);
-    setItinerary(
-      itinerary.map((item) => {
-        if (item.title === '清津峡') return { ...item, end: '14:50' };
-        if (item.title === '温泉街カフェ') {
-          return { ...item, start: '15:05', end: '15:45' };
-        }
-        if (item.title === '旅館チェックイン') {
-          return { ...item, start: '16:30', end: '16:50' };
-        }
-        return item;
-      }),
+    const selectedImprovement = itineraryImprovementOptions.find(
+      (option) => option.id === selectedImprovementId,
     );
+    if (!selectedImprovement) return;
+
+    setPreviousItinerary(itinerary);
+    setItinerary(itinerary.map(selectedImprovement.apply));
     setImproved(true);
   }
 
@@ -995,6 +1031,7 @@ export default function Home() {
     if (!previousItinerary) return;
     setItinerary(previousItinerary);
     setPreviousItinerary(null);
+    setSelectedImprovementId(null);
     setImproved(false);
   }
 
@@ -1676,17 +1713,43 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <p className="text-sm text-slate-700">
-                        改善前：{itineraryDiagnosis.score}点 / 改善後：
-                        {improved ? itineraryDiagnosis.score : improvedScore}点
+                        採用したい改善案を1つ選択してください。選択した案だけ旅程に反映されます。
                       </p>
                       <div className="grid gap-2 text-sm text-slate-700">
-                        <p>カフェを15:30から15:05へ変更し、滞在を短縮</p>
-                        <p>清津峡の滞在を90分から70分へ変更</p>
-                        <p>宿到着予定を16:30へ前倒し</p>
+                        {itineraryImprovementOptions.map((option) => {
+                          const isChecked = selectedImprovementId === option.id;
+                          return (
+                            <label
+                              className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${
+                                isChecked
+                                  ? 'border-teal-600 bg-white shadow-sm'
+                                  : 'border-teal-100 bg-teal-50/60 hover:bg-white'
+                              }`}
+                              key={option.id}
+                            >
+                              <input
+                                checked={isChecked}
+                                className="mt-1 size-4 accent-teal-700"
+                                name="itinerary-improvement"
+                                onChange={() => setSelectedImprovementId(option.id)}
+                                type="radio"
+                              />
+                              <span className="space-y-0.5">
+                                <span className="block font-medium text-slate-900">
+                                  {option.title}
+                                </span>
+                                <span className="block text-slate-600">
+                                  {option.detail}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button
                           className="bg-teal-800 hover:bg-teal-700"
+                          disabled={!selectedImprovementId}
                           onClick={applyImprovement}
                         >
                           <Check className="size-4" />
