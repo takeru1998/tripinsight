@@ -76,13 +76,12 @@ const preferenceLabels: Record<PreferenceKey, string> = {
 
 const tabs = [
   '概要',
-  'プロフィール',
   '旅行登録',
   '宿診断',
-  '旅程',
-  'リスク',
+  'リスク診断',
   'カルテ',
   'プラン',
+  'プロフィール',
 ];
 
 const reviewMetrics: Array<{
@@ -280,7 +279,7 @@ export default function Home() {
         memo: '',
       },
     ]);
-    setActiveTab('旅程');
+    setActiveTab('旅行登録');
   }
 
   function removeItineraryItem(id: string) {
@@ -412,11 +411,11 @@ export default function Home() {
           </Card>
         </section>
 
-        <nav className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto border-y border-emerald-950/10 bg-white/70 px-4 py-2 sm:mx-0 sm:rounded-lg sm:border">
+        <nav className="no-scrollbar fixed inset-x-0 bottom-0 z-30 flex gap-1 overflow-x-auto border-t border-emerald-950/10 bg-white/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur sm:static sm:mx-0 sm:gap-2 sm:rounded-lg sm:border sm:px-4 sm:pb-2 sm:shadow-none">
           {tabs.map((tab) => (
             <button
               key={tab}
-              className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition sm:text-sm ${
                 activeTab === tab
                   ? 'bg-emerald-900 text-white'
                   : 'text-slate-600 hover:bg-emerald-50'
@@ -429,7 +428,7 @@ export default function Home() {
           ))}
         </nav>
 
-        <section className="grid flex-1 gap-4 py-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="grid flex-1 gap-4 pb-28 pt-5 sm:pb-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-4">
             {activeTab === '概要' && (
               <div className="grid gap-4">
@@ -501,122 +500,275 @@ export default function Home() {
             )}
 
             {activeTab === '旅行登録' && (
-              <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle>新しい旅行を登録</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <FieldLabel>旅行名</FieldLabel>
-                    <Input
-                      value={travel.name}
-                      onChange={(event) =>
-                        setTravel({ ...travel, name: event.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <FieldLabel>出発日</FieldLabel>
-                    <Input
-                      type="date"
-                      value={travel.startDate}
-                      onChange={(event) =>
-                        setTravel({ ...travel, startDate: event.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <FieldLabel>帰宅日</FieldLabel>
-                    <Input
-                      type="date"
-                      value={travel.endDate}
-                      onChange={(event) =>
-                        setTravel({ ...travel, endDate: event.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <FieldLabel>出発地</FieldLabel>
-                    <Input
-                      value={travel.origin}
-                      onChange={(event) =>
-                        setTravel({ ...travel, origin: event.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <FieldLabel>移動手段</FieldLabel>
-                    <SelectField
-                      label="移動手段"
-                      options={['車', '電車', '飛行機', 'その他']}
-                      value={travel.transport}
-                      onChange={(value) =>
-                        setTravel({
-                          ...travel,
-                          transport: value as Travel['transport'],
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <FieldLabel>同行者</FieldLabel>
-                    <SelectField
-                      label="同行者"
-                      options={['一人', 'カップル', '夫婦', '友人', '家族']}
-                      value={travel.companion}
-                      onChange={(value) =>
-                        setTravel({
-                          ...travel,
-                          companion: value as Travel['companion'],
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <FieldLabel>人数</FieldLabel>
-                    <Input
-                      min="1"
-                      type="number"
-                      value={travel.people}
-                      onChange={(event) =>
-                        setTravel({ ...travel, people: Number(event.target.value) })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <FieldLabel>旅行予算</FieldLabel>
-                    <Input
-                      type="number"
-                      value={travel.budget}
-                      onChange={(event) =>
-                        setTravel({ ...travel, budget: Number(event.target.value) })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <FieldLabel>自由入力メモ</FieldLabel>
-                    <Textarea
-                      value={travel.memo}
-                      onChange={(event) =>
-                        setTravel({ ...travel, memo: event.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2 sm:col-span-2">
+              <div className="space-y-4">
+                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                  <CardHeader>
+                    <CardTitle>新しい旅行を登録</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <FieldLabel>旅行名</FieldLabel>
+                      <Input
+                        value={travel.name}
+                        onChange={(event) =>
+                          setTravel({ ...travel, name: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>出発日</FieldLabel>
+                      <Input
+                        type="date"
+                        value={travel.startDate}
+                        onChange={(event) =>
+                          setTravel({ ...travel, startDate: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>帰宅日</FieldLabel>
+                      <Input
+                        type="date"
+                        value={travel.endDate}
+                        onChange={(event) =>
+                          setTravel({ ...travel, endDate: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>出発地</FieldLabel>
+                      <Input
+                        value={travel.origin}
+                        onChange={(event) =>
+                          setTravel({ ...travel, origin: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>移動手段</FieldLabel>
+                      <SelectField
+                        label="移動手段"
+                        options={['車', '電車', '飛行機', 'その他']}
+                        value={travel.transport}
+                        onChange={(value) =>
+                          setTravel({
+                            ...travel,
+                            transport: value as Travel['transport'],
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>同行者</FieldLabel>
+                      <SelectField
+                        label="同行者"
+                        options={['一人', 'カップル', '夫婦', '友人', '家族']}
+                        value={travel.companion}
+                        onChange={(value) =>
+                          setTravel({
+                            ...travel,
+                            companion: value as Travel['companion'],
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>人数</FieldLabel>
+                      <Input
+                        min="1"
+                        type="number"
+                        value={travel.people}
+                        onChange={(event) =>
+                          setTravel({
+                            ...travel,
+                            people: Number(event.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>旅行予算</FieldLabel>
+                      <Input
+                        type="number"
+                        value={travel.budget}
+                        onChange={(event) =>
+                          setTravel({
+                            ...travel,
+                            budget: Number(event.target.value),
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <FieldLabel>自由入力メモ</FieldLabel>
+                      <Textarea
+                        value={travel.memo}
+                        onChange={(event) =>
+                          setTravel({ ...travel, memo: event.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2 sm:col-span-2">
+                      <Button
+                        className="bg-emerald-900 hover:bg-emerald-800"
+                        onClick={() => setActiveTab('宿診断')}
+                      >
+                        <Bed className="size-4" />
+                        宿を入力する
+                      </Button>
+                      <Button variant="outline" onClick={resetDemo}>
+                        <RotateCcw className="size-4" />
+                        モック旅行に戻す
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between gap-3">
+                      旅程
+                      <Badge className="bg-emerald-50 text-emerald-800">
+                        旅行スコア {itineraryDiagnosis.score}点
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex justify-end">
+                      <Button variant="outline" onClick={addItineraryItem}>
+                        <Plus className="size-4" />
+                        予定を追加
+                      </Button>
+                    </div>
+                    {itinerary.map((item) => (
+                      <div
+                        key={item.id}
+                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[88px_1fr_1fr_auto]"
+                      >
+                        <div className="space-y-1">
+                          <Input
+                            aria-label={`${item.title}開始時間`}
+                            value={item.start}
+                            onChange={(event) =>
+                              updateItinerary(item.id, { start: event.target.value })
+                            }
+                          />
+                          <Input
+                            aria-label={`${item.title}終了時間`}
+                            value={item.end}
+                            onChange={(event) =>
+                              updateItinerary(item.id, { end: event.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Input
+                            value={item.title}
+                            onChange={(event) =>
+                              updateItinerary(item.id, { title: event.target.value })
+                            }
+                          />
+                          <p className="flex items-center gap-1 text-xs text-slate-500">
+                            <MapPin className="size-3" />
+                            {item.place || '場所未入力'}
+                          </p>
+                          <Input
+                            aria-label={`${item.title}場所`}
+                            placeholder="場所"
+                            value={item.place}
+                            onChange={(event) =>
+                              updateItinerary(item.id, { place: event.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <SelectField
+                            label={`${item.title}カテゴリ`}
+                            options={[
+                              '移動',
+                              '食事',
+                              '観光',
+                              '温泉',
+                              '宿泊',
+                              '休憩',
+                              'その他',
+                            ]}
+                            value={item.category}
+                            onChange={(value) =>
+                              updateItinerary(item.id, {
+                                category: value as ItineraryItem['category'],
+                              })
+                            }
+                          />
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">優先度</span>
+                            <input
+                              aria-label={`${item.title}優先度`}
+                              className="w-full accent-emerald-800"
+                              max="5"
+                              min="1"
+                              onChange={(event) =>
+                                updateItinerary(item.id, {
+                                  priority: Number(event.target.value),
+                                })
+                              }
+                              type="range"
+                              value={item.priority}
+                            />
+                            <span className="w-4 text-sm font-medium text-emerald-800">
+                              {item.priority}
+                            </span>
+                          </div>
+                          <Input
+                            aria-label={`${item.title}メモ`}
+                            placeholder="メモ"
+                            value={item.memo}
+                            onChange={(event) =>
+                              updateItinerary(item.id, { memo: event.target.value })
+                            }
+                          />
+                        </div>
+                        <Button
+                          aria-label={`${item.title}を削除`}
+                          className="self-start text-rose-700 hover:text-rose-800"
+                          onClick={() => removeItineraryItem(item.id)}
+                          size="icon"
+                          variant="ghost"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-lg border-teal-200 bg-teal-50 shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="size-5 text-teal-700" />
+                      AIで改善
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-slate-700">
+                      改善前：{itineraryDiagnosis.score}点 / 改善後：
+                      {improved ? itineraryDiagnosis.score : improvedScore}点
+                    </p>
+                    <div className="grid gap-2 text-sm text-slate-700">
+                      <p>カフェを15:30から15:05へ変更し、滞在を短縮</p>
+                      <p>清津峡の滞在を90分から70分へ変更</p>
+                      <p>宿到着予定を16:30へ前倒し</p>
+                    </div>
                     <Button
-                      className="bg-emerald-900 hover:bg-emerald-800"
-                      onClick={() => setActiveTab('宿診断')}
+                      className="bg-teal-800 hover:bg-teal-700"
+                      onClick={applyImprovement}
                     >
-                      <Bed className="size-4" />
-                      宿を入力する
+                      <Check className="size-4" />
+                      改善案を採用
                     </Button>
-                    <Button variant="outline" onClick={resetDemo}>
-                      <RotateCcw className="size-4" />
-                      モック旅行に戻す
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {activeTab === '宿診断' && (
@@ -776,155 +928,7 @@ export default function Home() {
               </div>
             )}
 
-            {activeTab === '旅程' && (
-              <div className="space-y-4">
-                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between gap-3">
-                      AI旅行ジャッジ
-                      <Badge className="bg-emerald-50 text-emerald-800">
-                        旅行スコア {itineraryDiagnosis.score}点
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex justify-end">
-                      <Button variant="outline" onClick={addItineraryItem}>
-                        <Plus className="size-4" />
-                        予定を追加
-                      </Button>
-                    </div>
-                    {itinerary.map((item) => (
-                      <div
-                        key={item.id}
-                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[88px_1fr_1fr_auto]"
-                      >
-                        <div className="space-y-1">
-                          <Input
-                            aria-label={`${item.title}開始時間`}
-                            value={item.start}
-                            onChange={(event) =>
-                              updateItinerary(item.id, { start: event.target.value })
-                            }
-                          />
-                          <Input
-                            aria-label={`${item.title}終了時間`}
-                            value={item.end}
-                            onChange={(event) =>
-                              updateItinerary(item.id, { end: event.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Input
-                            value={item.title}
-                            onChange={(event) =>
-                              updateItinerary(item.id, { title: event.target.value })
-                            }
-                          />
-                          <p className="flex items-center gap-1 text-xs text-slate-500">
-                            <MapPin className="size-3" />
-                            {item.place || '場所未入力'}
-                          </p>
-                          <Input
-                            aria-label={`${item.title}場所`}
-                            placeholder="場所"
-                            value={item.place}
-                            onChange={(event) =>
-                              updateItinerary(item.id, { place: event.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <SelectField
-                            label={`${item.title}カテゴリ`}
-                            options={[
-                              '移動',
-                              '食事',
-                              '観光',
-                              '温泉',
-                              '宿泊',
-                              '休憩',
-                              'その他',
-                            ]}
-                            value={item.category}
-                            onChange={(value) =>
-                              updateItinerary(item.id, {
-                                category: value as ItineraryItem['category'],
-                              })
-                            }
-                          />
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500">優先度</span>
-                            <input
-                              aria-label={`${item.title}優先度`}
-                              className="w-full accent-emerald-800"
-                              max="5"
-                              min="1"
-                              onChange={(event) =>
-                                updateItinerary(item.id, {
-                                  priority: Number(event.target.value),
-                                })
-                              }
-                              type="range"
-                              value={item.priority}
-                            />
-                            <span className="w-4 text-sm font-medium text-emerald-800">
-                              {item.priority}
-                            </span>
-                          </div>
-                          <Input
-                            aria-label={`${item.title}メモ`}
-                            placeholder="メモ"
-                            value={item.memo}
-                            onChange={(event) =>
-                              updateItinerary(item.id, { memo: event.target.value })
-                            }
-                          />
-                        </div>
-                        <Button
-                          aria-label={`${item.title}を削除`}
-                          className="self-start text-rose-700 hover:text-rose-800"
-                          onClick={() => removeItineraryItem(item.id)}
-                          size="icon"
-                          variant="ghost"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-                <Card className="rounded-lg border-teal-200 bg-teal-50 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Sparkles className="size-5 text-teal-700" />
-                      AIで改善
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-slate-700">
-                      改善前：{itineraryDiagnosis.score}点 / 改善後：
-                      {improved ? itineraryDiagnosis.score : improvedScore}点
-                    </p>
-                    <div className="grid gap-2 text-sm text-slate-700">
-                      <p>カフェを15:30から15:05へ変更し、滞在を短縮</p>
-                      <p>清津峡の滞在を90分から70分へ変更</p>
-                      <p>宿到着予定を16:30へ前倒し</p>
-                    </div>
-                    <Button
-                      className="bg-teal-800 hover:bg-teal-700"
-                      onClick={applyImprovement}
-                    >
-                      <Check className="size-4" />
-                      改善案を採用
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {activeTab === 'リスク' && (
+            {activeTab === 'リスク診断' && (
               <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle>AI旅行トラブル予報</CardTitle>
