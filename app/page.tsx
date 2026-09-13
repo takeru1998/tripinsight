@@ -10,13 +10,16 @@ import {
   CreditCard,
   MapPin,
   Plus,
+  RotateCcw,
   Route,
+  Save,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  Trash2,
   Train,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -42,8 +45,19 @@ import type {
   ItineraryItem,
   PreferenceKey,
   Travel,
+  TravelReview,
   UserTravelPreference,
 } from '@/types/tripcheck';
+
+type TripCheckState = {
+  preference: UserTravelPreference;
+  travel: Travel;
+  accommodation: Accommodation;
+  itinerary: ItineraryItem[];
+  review: TravelReview;
+};
+
+const storageKey = 'tripcheck-mvp-state-v1';
 
 const preferenceLabels: Record<PreferenceKey, string> = {
   onsen: '温泉',
@@ -71,6 +85,26 @@ const tabs = [
   'プラン',
 ];
 
+const reviewMetrics: Array<{
+  label: string;
+  key: keyof Pick<
+    TravelReview,
+    | 'hotelSatisfaction'
+    | 'foodSatisfaction'
+    | 'sightseeingSatisfaction'
+    | 'transitFatigue'
+    | 'scheduleAmount'
+    | 'overallSatisfaction'
+  >;
+}> = [
+  { label: '宿満足度', key: 'hotelSatisfaction' },
+  { label: '食事満足度', key: 'foodSatisfaction' },
+  { label: '観光満足度', key: 'sightseeingSatisfaction' },
+  { label: '移動疲労', key: 'transitFatigue' },
+  { label: '予定量', key: 'scheduleAmount' },
+  { label: '総合満足度', key: 'overallSatisfaction' },
+];
+
 function currency(value: number) {
   return new Intl.NumberFormat('ja-JP').format(value);
 }
@@ -92,6 +126,33 @@ function scoreTone(score: number) {
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label className="text-xs font-medium text-slate-600">{children}</label>;
+}
+
+function SelectField({
+  value,
+  options,
+  onChange,
+  label,
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+  label: string;
+}) {
+  return (
+    <select
+      aria-label={label}
+      className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
+      onChange={(event) => onChange(event.target.value)}
+      value={value}
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 function ScoreCard({
@@ -144,7 +205,37 @@ export default function Home() {
   const [accommodation, setAccommodation] =
     useState<Accommodation>(mockAccommodation);
   const [itinerary, setItinerary] = useState<ItineraryItem[]>(mockItinerary);
+  const [review, setReview] = useState<TravelReview>(mockReview);
   const [improved, setImproved] = useState(false);
+  const [saveState, setSaveState] = useState('端末内に自動保存');
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(storageKey);
+    if (!raw) return;
+
+    try {
+      const stored = JSON.parse(raw) as Partial<TripCheckState>;
+      if (stored.preference) setPreference(stored.preference);
+      if (stored.travel) setTravel(stored.travel);
+      if (stored.accommodation) setAccommodation(stored.accommodation);
+      if (stored.itinerary) setItinerary(stored.itinerary);
+      if (stored.review) setReview(stored.review);
+      setSaveState('保存済みデータを読み込みました');
+    } catch {
+      setSaveState('保存データを読み込めませんでした');
+    }
+  }, []);
+
+  useEffect(() => {
+    const state: TripCheckState = {
+      preference,
+      travel,
+      accommodation,
+      itinerary,
+      review,
+    };
+    window.localStorage.setItem(storageKey, JSON.stringify(state));
+  }, [preference, travel, accommodation, itinerary, review]);
 
   const hotelDiagnosis = useMemo(
     () => mockAiProvider.diagnoseHotel(preference, accommodation),
@@ -173,6 +264,37 @@ export default function Home() {
     setItinerary((items) =>
       items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     );
+  }
+
+  function addItineraryItem() {
+    setItinerary((items) => [
+      ...items,
+      {
+        id: `i${Date.now()}`,
+        title: '新しい予定',
+        place: '',
+        start: '10:00',
+        end: '11:00',
+        category: '観光',
+        priority: 3,
+        memo: '',
+      },
+    ]);
+    setActiveTab('旅程');
+  }
+
+  function removeItineraryItem(id: string) {
+    setItinerary((items) => items.filter((item) => item.id !== id));
+  }
+
+  function resetDemo() {
+    setPreference(mockPreference);
+    setTravel(mockTravel);
+    setAccommodation(mockAccommodation);
+    setItinerary(mockItinerary);
+    setReview(mockReview);
+    setImproved(false);
+    setSaveState('モック旅行に戻しました');
   }
 
   function applyImprovement() {
@@ -207,11 +329,18 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <Button className="bg-emerald-900 hover:bg-emerald-800">
+            <Button
+              className="bg-emerald-900 hover:bg-emerald-800"
+              onClick={() => setActiveTab('旅行登録')}
+            >
               <Plus className="size-4" />
               新しい旅行を診断
             </Button>
           </div>
+          <p className="mt-2 flex items-center gap-1 text-xs text-slate-500">
+            <Save className="size-3.5" />
+            {saveState}
+          </p>
         </header>
 
         <section className="grid gap-4 py-5 lg:grid-cols-[1.1fr_0.9fr]">
@@ -416,6 +545,45 @@ export default function Home() {
                     />
                   </div>
                   <div className="space-y-1.5">
+                    <FieldLabel>移動手段</FieldLabel>
+                    <SelectField
+                      label="移動手段"
+                      options={['車', '電車', '飛行機', 'その他']}
+                      value={travel.transport}
+                      onChange={(value) =>
+                        setTravel({
+                          ...travel,
+                          transport: value as Travel['transport'],
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <FieldLabel>同行者</FieldLabel>
+                    <SelectField
+                      label="同行者"
+                      options={['一人', 'カップル', '夫婦', '友人', '家族']}
+                      value={travel.companion}
+                      onChange={(value) =>
+                        setTravel({
+                          ...travel,
+                          companion: value as Travel['companion'],
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <FieldLabel>人数</FieldLabel>
+                    <Input
+                      min="1"
+                      type="number"
+                      value={travel.people}
+                      onChange={(event) =>
+                        setTravel({ ...travel, people: Number(event.target.value) })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
                     <FieldLabel>旅行予算</FieldLabel>
                     <Input
                       type="number"
@@ -433,6 +601,19 @@ export default function Home() {
                         setTravel({ ...travel, memo: event.target.value })
                       }
                     />
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:col-span-2">
+                    <Button
+                      className="bg-emerald-900 hover:bg-emerald-800"
+                      onClick={() => setActiveTab('宿診断')}
+                    >
+                      <Bed className="size-4" />
+                      宿を入力する
+                    </Button>
+                    <Button variant="outline" onClick={resetDemo}>
+                      <RotateCcw className="size-4" />
+                      モック旅行に戻す
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -495,6 +676,66 @@ export default function Home() {
                           }
                         />
                       </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>チェックイン時間</FieldLabel>
+                        <Input
+                          value={accommodation.checkIn}
+                          onChange={(event) =>
+                            setAccommodation({
+                              ...accommodation,
+                              checkIn: event.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>チェックアウト時間</FieldLabel>
+                        <Input
+                          value={accommodation.checkOut}
+                          onChange={(event) =>
+                            setAccommodation({
+                              ...accommodation,
+                              checkOut: event.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>夕食時間</FieldLabel>
+                        <Input
+                          value={accommodation.dinner}
+                          onChange={(event) =>
+                            setAccommodation({
+                              ...accommodation,
+                              dinner: event.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>朝食時間</FieldLabel>
+                        <Input
+                          value={accommodation.breakfast}
+                          onChange={(event) =>
+                            setAccommodation({
+                              ...accommodation,
+                              breakfast: event.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <FieldLabel>ユーザーによる補足情報</FieldLabel>
+                        <Textarea
+                          value={accommodation.note}
+                          onChange={(event) =>
+                            setAccommodation({
+                              ...accommodation,
+                              note: event.target.value,
+                            })
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {Object.entries(hotelDiagnosis.categoryScores).map(
@@ -547,10 +788,16 @@ export default function Home() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
+                    <div className="flex justify-end">
+                      <Button variant="outline" onClick={addItineraryItem}>
+                        <Plus className="size-4" />
+                        予定を追加
+                      </Button>
+                    </div>
                     {itinerary.map((item) => (
                       <div
                         key={item.id}
-                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[88px_1fr_1fr]"
+                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-[88px_1fr_1fr_auto]"
                       >
                         <div className="space-y-1">
                           <Input
@@ -577,15 +824,73 @@ export default function Home() {
                           />
                           <p className="flex items-center gap-1 text-xs text-slate-500">
                             <MapPin className="size-3" />
-                            {item.place}
+                            {item.place || '場所未入力'}
                           </p>
+                          <Input
+                            aria-label={`${item.title}場所`}
+                            placeholder="場所"
+                            value={item.place}
+                            onChange={(event) =>
+                              updateItinerary(item.id, { place: event.target.value })
+                            }
+                          />
                         </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <Badge variant="secondary">{item.category}</Badge>
-                          <span className="text-xs text-slate-500">
-                            優先度 {item.priority}
-                          </span>
+                        <div className="grid gap-2">
+                          <SelectField
+                            label={`${item.title}カテゴリ`}
+                            options={[
+                              '移動',
+                              '食事',
+                              '観光',
+                              '温泉',
+                              '宿泊',
+                              '休憩',
+                              'その他',
+                            ]}
+                            value={item.category}
+                            onChange={(value) =>
+                              updateItinerary(item.id, {
+                                category: value as ItineraryItem['category'],
+                              })
+                            }
+                          />
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">優先度</span>
+                            <input
+                              aria-label={`${item.title}優先度`}
+                              className="w-full accent-emerald-800"
+                              max="5"
+                              min="1"
+                              onChange={(event) =>
+                                updateItinerary(item.id, {
+                                  priority: Number(event.target.value),
+                                })
+                              }
+                              type="range"
+                              value={item.priority}
+                            />
+                            <span className="w-4 text-sm font-medium text-emerald-800">
+                              {item.priority}
+                            </span>
+                          </div>
+                          <Input
+                            aria-label={`${item.title}メモ`}
+                            placeholder="メモ"
+                            value={item.memo}
+                            onChange={(event) =>
+                              updateItinerary(item.id, { memo: event.target.value })
+                            }
+                          />
                         </div>
+                        <Button
+                          aria-label={`${item.title}を削除`}
+                          className="self-start text-rose-700 hover:text-rose-800"
+                          onClick={() => removeItineraryItem(item.id)}
+                          size="icon"
+                          variant="ghost"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
                       </div>
                     ))}
                   </CardContent>
@@ -658,29 +963,49 @@ export default function Home() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {[
-                      ['宿満足度', mockReview.hotelSatisfaction],
-                      ['食事満足度', mockReview.foodSatisfaction],
-                      ['観光満足度', mockReview.sightseeingSatisfaction],
-                      ['移動疲労', mockReview.transitFatigue],
-                      ['予定量', mockReview.scheduleAmount],
-                      ['総合満足度', mockReview.overallSatisfaction],
-                    ].map(([label, value]) => (
-                      <MiniBar
-                        key={label}
-                        label={String(label)}
-                        value={Number(value) * 20}
-                      />
+                    {reviewMetrics.map(({ label, key }) => (
+                      <div key={key} className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-600">{label}</span>
+                          <span className="font-medium text-emerald-800">
+                            {review[key]}
+                          </span>
+                        </div>
+                        <input
+                          aria-label={label}
+                          className="w-full accent-emerald-800"
+                          max="5"
+                          min="1"
+                          onChange={(event) =>
+                            setReview({
+                              ...review,
+                              [key]: Number(event.target.value),
+                            })
+                          }
+                          type="range"
+                          value={review[key]}
+                        />
+                      </div>
                     ))}
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <FieldLabel>よかったこと</FieldLabel>
-                      <Textarea value={mockReview.good} readOnly />
+                      <Textarea
+                        value={review.good}
+                        onChange={(event) =>
+                          setReview({ ...review, good: event.target.value })
+                        }
+                      />
                     </div>
                     <div className="space-y-1.5">
                       <FieldLabel>失敗したこと</FieldLabel>
-                      <Textarea value={mockReview.failed} readOnly />
+                      <Textarea
+                        value={review.failed}
+                        onChange={(event) =>
+                          setReview({ ...review, failed: event.target.value })
+                        }
+                      />
                     </div>
                   </div>
                   <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-950">
