@@ -205,6 +205,68 @@ function TimeSelect({
   );
 }
 
+function priorityColor(level: number) {
+  if (level <= 1) return 'bg-slate-300';
+  if (level === 2) return 'bg-teal-300';
+  if (level === 3) return 'bg-teal-500';
+  if (level === 4) return 'bg-emerald-600';
+  return 'bg-amber-500';
+}
+
+function priorityLabel(level: number) {
+  return ['低め', '控えめ', '標準', '高め', '最優先'][level - 1];
+}
+
+function PriorityControl({
+  value,
+  onChange,
+  label,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  label: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-medium text-slate-600">優先度</span>
+        <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-800">
+          {value} / {priorityLabel(value)}
+        </span>
+      </div>
+      <div
+        aria-label={label}
+        className="grid grid-cols-5 gap-1.5"
+        role="radiogroup"
+      >
+        {[1, 2, 3, 4, 5].map((level) => (
+          <button
+            aria-checked={value === level}
+            aria-label={`優先度${level}`}
+            className={`h-8 rounded-md border transition ${
+              level <= value
+                ? `${priorityColor(level)} border-transparent shadow-sm`
+                : 'border-slate-200 bg-slate-50'
+            } ${value === level ? 'ring-2 ring-emerald-900/20' : ''}`}
+            key={level}
+            onClick={() => onChange(level)}
+            role="radio"
+            type="button"
+          >
+            <span
+              className={`text-xs font-semibold ${
+                level <= value ? 'text-white' : 'text-slate-400'
+              }`}
+            >
+              {level}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ScoreCard({
   title,
   value,
@@ -695,9 +757,9 @@ export default function Home() {
                     {itinerary.map((item) => (
                       <div
                         key={item.id}
-                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto]"
+                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1.7fr)_120px_minmax(220px,1.1fr)_auto]"
                       >
-                        <div className="space-y-1.5">
+                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                           <FieldLabel>タイトル</FieldLabel>
                           <Input
                             aria-label={`${item.title}タイトル`}
@@ -778,28 +840,14 @@ export default function Home() {
                             />
                           </div>
                         )}
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-medium text-slate-600">優先度</span>
-                            <span className="font-semibold text-emerald-800">
-                              {item.priority}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              aria-label={`${item.title}優先度`}
-                              className="w-full accent-emerald-800"
-                              max="5"
-                              min="1"
-                              onChange={(event) =>
-                                updateItinerary(item.id, {
-                                  priority: Number(event.target.value),
-                                })
-                              }
-                              type="range"
-                              value={item.priority}
-                            />
-                          </div>
+                        <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                          <PriorityControl
+                            label={`${item.title}優先度`}
+                            value={item.priority}
+                            onChange={(value) =>
+                              updateItinerary(item.id, { priority: value })
+                            }
+                          />
                         </div>
                         <div className="space-y-1.5 sm:col-span-2 lg:col-span-4">
                           <FieldLabel>備考</FieldLabel>
