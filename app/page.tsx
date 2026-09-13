@@ -7,7 +7,10 @@ import {
   Check,
   ChevronRight,
   CloudRain,
+  ClipboardList,
   CreditCard,
+  Eye,
+  ListFilter,
   MapPin,
   Pencil,
   Plus,
@@ -63,6 +66,7 @@ type TripCheckState = {
   trips?: TripRecord[];
   selectedTripId?: string | null;
   riskDetailTripId?: string | null;
+  detailTripId?: string | null;
 };
 
 type TripRecord = {
@@ -72,6 +76,9 @@ type TripRecord = {
   itinerary: ItineraryItem[];
   review: TravelReview;
 };
+
+type TripListFilter = 'all' | 'attention' | 'missing';
+type TripListSort = 'date' | 'risk';
 
 const storageKey = 'tripcheck-mvp-state-v1';
 
@@ -259,6 +266,22 @@ function tripDateTime(record: TripRecord) {
   return Number.isNaN(target.getTime())
     ? Number.POSITIVE_INFINITY
     : target.getTime();
+}
+
+function clampPercent(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function toMinutes(time: string) {
+  const [hour = '0', minute = '0'] = time.split(':');
+  return Number(hour) * 60 + Number(minute);
+}
+
+function countTightGaps(itineraryItems: ItineraryItem[]) {
+  return itineraryItems.slice(1).filter((item, index) => {
+    const previous = itineraryItems[index];
+    return toMinutes(item.start) - toMinutes(previous.end) < 25;
+  }).length;
 }
 
 function scoreTone(score: number) {
@@ -459,6 +482,68 @@ function topRiskLabel(risk: RiskDiagnosis) {
   return `${label} ${value}`;
 }
 
+function buildContextualRisk(record: TripRecord): RiskDiagnosis {
+  const outdoorPlans = record.itinerary.filter(
+    (item) => item.category === '観光',
+  ).length;
+  const movePlans = record.itinerary.filter((item) => item.category === '移動');
+  const mealPlans = record.itinerary.filter((item) => item.category === '食事');
+  const tightGaps = countTightGaps(record.itinerary);
+  const hasAccommodation = Boolean(record.accommodation.name);
+  const hasDinner = Boolean(record.accommodation.dinner);
+  const hasMemo = Boolean(record.travel.memo);
+  const isCar = record.travel.transport === '車';
+  const base = 26 + outdoorPlans * 8 + tightGaps * 7 + movePlans.length * 3;
+  const riskPercent = clampPercent(
+    base +
+      (isCar ? 10 : 0) +
+      (!hasAccommodation ? 12 : 0) +
+      (!hasDinner ? 6 : 0) +
+      (!hasMemo ? 4 : 0),
+  );
+  const primaryPlace =
+    record.itinerary.find((item) => item.category === '観光')?.place ||
+    record.accommodation.location ||
+    record.travel.origin ||
+    '旅行先';
+
+  const warnings = [
+    tightGaps > 0
+      ? `予定間の余裕が短い箇所が${tightGaps}件あります。移動や待ち時間が伸びると後続予定に響きます`
+      : '予定間の余裕は大きく崩れていませんが、人気エリアでは待ち時間を見込むと安心です',
+    mealPlans.length === 0
+      ? '食事予定が未登録です。昼食・夕食の候補がないと当日の混雑に弱くなります'
+      : '食事予定はあります。混雑時の第2候補まで決めると満足度が安定します',
+    hasAccommodation
+      ? `${record.accommodation.name}のチェックイン条件と到着予定の整合性を確認してください`
+      : '宿情報が未登録です。チェックイン時間、食事時間、送迎条件の診断精度が下がります',
+  ];
+
+  if (isCar) {
+    warnings.push('車移動のため、渋滞・駐車場満車・給油タイミングを事前に見ておく必要があります');
+  } else {
+    warnings.push(`${record.travel.transport}移動のため、遅延時の代替便や乗換余裕を確認してください`);
+  }
+
+  return {
+    riskPercent,
+    categoryRisks: {
+      天候リスク: clampPercent(34 + outdoorPlans * 12),
+      渋滞リスク: clampPercent(isCar ? 58 + movePlans.length * 5 : 20),
+      食事リスク: clampPercent(mealPlans.length ? 34 : 62),
+      駐車場リスク: clampPercent(isCar ? 56 : 12),
+      営業時間リスク: clampPercent(36 + (record.itinerary.length ? 4 : 18)),
+      遅延リスク: clampPercent(32 + tightGaps * 12 + movePlans.length * 4),
+      疲労リスク: clampPercent(34 + record.itinerary.length * 5),
+    },
+    critical:
+      outdoorPlans > 0
+        ? `${primaryPlace}周辺の屋外予定は天候と混雑の影響を受けやすいです。午前寄せか屋内代替を用意すると安全です。`
+        : `${primaryPlace}周辺は大きな屋外予定が少ないため、交通遅延と食事候補の不足を重点的に確認してください。`,
+    warnings,
+  };
+}
+
 function buildAvoidancePlans(record: TripRecord, risk: RiskDiagnosis) {
   const plans = [
     `${record.travel.transport}移動は、出発前日の夜に遅延・運休・渋滞情報を確認し、30分早い代替ルートを1つ控える`,
@@ -479,6 +564,31 @@ function buildAvoidancePlans(record: TripRecord, risk: RiskDiagnosis) {
   }
 
   return plans;
+}
+
+function buildNextActions(record: TripRecord | null, risk: RiskDiagnosis) {
+  if (!record) {
+    return ['旅行を1件登録して、宿・旅程・リスクをまとめて診断する'];
+  }
+
+  const actions = [];
+  if (!record.accommodation.name) {
+    actions.push('宿泊先を登録して、チェックイン・食事時間のリスクを確認する');
+  }
+  if (record.itinerary.length === 0) {
+    actions.push('旅程を1件以上追加して、移動時間と疲労リスクを診断する');
+  }
+  if (risk.categoryRisks.食事リスク >= 50) {
+    actions.push('昼食・夕食の第2候補を追加して、混雑時の迷いを減らす');
+  }
+  if (risk.categoryRisks.天候リスク >= 50) {
+    actions.push('雨天時の屋内代替案を1つ登録する');
+  }
+  if (risk.categoryRisks.遅延リスク >= 45) {
+    actions.push('移動予定に30分の予備時間を確保する');
+  }
+
+  return actions.slice(0, 3);
 }
 
 function buildRiskChecks(record: TripRecord) {
@@ -522,6 +632,9 @@ export default function Home() {
   const [riskDetailTripId, setRiskDetailTripId] = useState<string | null>(
     mockTravel.id,
   );
+  const [detailTripId, setDetailTripId] = useState<string | null>(mockTravel.id);
+  const [tripFilter, setTripFilter] = useState<TripListFilter>('all');
+  const [tripSort, setTripSort] = useState<TripListSort>('date');
   const [improved, setImproved] = useState(false);
   const [previousItinerary, setPreviousItinerary] = useState<
     ItineraryItem[] | null
@@ -546,6 +659,9 @@ export default function Home() {
       if ('riskDetailTripId' in stored) {
         setRiskDetailTripId(stored.riskDetailTripId ?? null);
       }
+      if ('detailTripId' in stored) {
+        setDetailTripId(stored.detailTripId ?? null);
+      }
       setSaveState('保存済みデータを読み込みました');
     } catch {
       setSaveState('保存データを読み込めませんでした');
@@ -562,6 +678,7 @@ export default function Home() {
       trips,
       selectedTripId,
       riskDetailTripId,
+      detailTripId,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(state));
   }, [
@@ -573,6 +690,7 @@ export default function Home() {
     trips,
     selectedTripId,
     riskDetailTripId,
+    detailTripId,
   ]);
 
   const hotelDiagnosis = useMemo(
@@ -583,23 +701,13 @@ export default function Home() {
     () => mockAiProvider.judgeItinerary(travel, accommodation, itinerary),
     [travel, accommodation, itinerary],
   );
-  const riskDiagnosis = useMemo(
-    () => mockAiProvider.forecastRisk(travel, itinerary),
-    [travel, itinerary],
-  );
   const riskDetailTrip = useMemo(
     () =>
       trips.find((trip) => trip.id === riskDetailTripId) ?? trips[0] ?? null,
     [trips, riskDetailTripId],
   );
   const riskDetailDiagnosis = useMemo(
-    () =>
-      riskDetailTrip
-        ? mockAiProvider.forecastRisk(
-            riskDetailTrip.travel,
-            riskDetailTrip.itinerary,
-          )
-        : null,
+    () => (riskDetailTrip ? buildContextualRisk(riskDetailTrip) : null),
     [riskDetailTrip],
   );
   const riskDetailPlans = useMemo(
@@ -620,6 +728,36 @@ export default function Home() {
       .sort((a, b) => tripDateTime(a) - tripDateTime(b));
     return futureTrips[0] ?? trips[0] ?? null;
   }, [trips]);
+  const detailTrip = useMemo(
+    () =>
+      trips.find((trip) => trip.id === detailTripId) ??
+      trips.find((trip) => trip.id === selectedTripId) ??
+      nearestTrip ??
+      null,
+    [trips, detailTripId, selectedTripId, nearestTrip],
+  );
+  const detailRiskDiagnosis = useMemo(
+    () => (detailTrip ? buildContextualRisk(detailTrip) : null),
+    [detailTrip],
+  );
+  const detailHotelDiagnosis = useMemo(
+    () =>
+      detailTrip
+        ? mockAiProvider.diagnoseHotel(preference, detailTrip.accommodation)
+        : null,
+    [preference, detailTrip],
+  );
+  const detailItineraryDiagnosis = useMemo(
+    () =>
+      detailTrip
+        ? mockAiProvider.judgeItinerary(
+            detailTrip.travel,
+            detailTrip.accommodation,
+            detailTrip.itinerary,
+          )
+        : null,
+    [detailTrip],
+  );
   const topTravel = nearestTrip?.travel ?? travel;
   const topAccommodation = nearestTrip?.accommodation ?? accommodation;
   const topItinerary = nearestTrip?.itinerary ?? itinerary;
@@ -633,9 +771,41 @@ export default function Home() {
     [topTravel, topAccommodation, topItinerary],
   );
   const topRiskDiagnosis = useMemo(
-    () => mockAiProvider.forecastRisk(topTravel, topItinerary),
-    [topTravel, topItinerary],
+    () =>
+      buildContextualRisk({
+        id: nearestTrip?.id ?? 'top',
+        travel: topTravel,
+        accommodation: topAccommodation,
+        itinerary: topItinerary,
+        review: nearestTrip?.review ?? review,
+      }),
+    [nearestTrip, topTravel, topAccommodation, topItinerary, review],
   );
+  const nextActions = useMemo(
+    () => buildNextActions(nearestTrip, topRiskDiagnosis),
+    [nearestTrip, topRiskDiagnosis],
+  );
+  const displayedTrips = useMemo(() => {
+    const rows = trips.map((trip) => ({
+      trip,
+      risk: buildContextualRisk(trip),
+      missing:
+        !trip.travel.startDate ||
+        !trip.travel.endDate ||
+        !trip.accommodation.name ||
+        trip.itinerary.length === 0,
+    }));
+    return rows
+      .filter(({ risk, missing }) => {
+        if (tripFilter === 'attention') return risk.riskPercent >= 50;
+        if (tripFilter === 'missing') return missing;
+        return true;
+      })
+      .sort((a, b) => {
+        if (tripSort === 'risk') return b.risk.riskPercent - a.risk.riskPercent;
+        return tripDateTime(a.trip) - tripDateTime(b.trip);
+      });
+  }, [trips, tripFilter, tripSort]);
   const remainingDays = daysUntil(topTravel.startDate);
   const overallScore = Math.round(
     topHotelDiagnosis.score * 0.35 +
@@ -685,6 +855,7 @@ export default function Home() {
     setTrips(mockTrips);
     setSelectedTripId(mockTravel.id);
     setRiskDetailTripId(mockTravel.id);
+    setDetailTripId(mockTravel.id);
     setImproved(false);
     setPreviousItinerary(null);
     setSaveState('モック旅行に戻しました');
@@ -700,6 +871,7 @@ export default function Home() {
     setReview(emptyReview);
     setSelectedTripId(null);
     setRiskDetailTripId(null);
+    setDetailTripId(null);
     setPreviousItinerary(null);
     setImproved(false);
     setActiveTab('旅行登録');
@@ -724,6 +896,7 @@ export default function Home() {
     setTravel(savedTravel);
     setSelectedTripId(id);
     setRiskDetailTripId(id);
+    setDetailTripId(id);
     setTrips((items) => {
       const exists = items.some((item) => item.id === id);
       if (exists) {
@@ -740,6 +913,7 @@ export default function Home() {
     setItinerary(record.itinerary);
     setReview(record.review);
     setSelectedTripId(record.id);
+    setDetailTripId(record.id);
     setPreviousItinerary(null);
     setImproved(false);
     setActiveTab('旅行登録');
@@ -753,10 +927,24 @@ export default function Home() {
     setReview(record.review);
     setSelectedTripId(record.id);
     setRiskDetailTripId(record.id);
+    setDetailTripId(record.id);
     setPreviousItinerary(null);
     setImproved(false);
     setActiveTab('リスク診断');
     setSaveState(`${record.travel.name}のリスク診断を表示中`);
+  }
+
+  function openTripDetail(record: TripRecord) {
+    setTravel(record.travel);
+    setAccommodation(record.accommodation);
+    setItinerary(record.itinerary);
+    setReview(record.review);
+    setSelectedTripId(record.id);
+    setDetailTripId(record.id);
+    setPreviousItinerary(null);
+    setImproved(false);
+    setActiveTab('旅行詳細');
+    setSaveState(`${record.travel.name}の詳細を表示中`);
   }
 
   function applyImprovement() {
@@ -885,11 +1073,11 @@ export default function Home() {
                 {topRiskDiagnosis.critical}
               </p>
               <div className="rounded-lg bg-white/70 p-3 text-sm text-slate-700">
-                最も改善すべき3点
+                次にやるべきこと
                 <ul className="mt-2 space-y-2 text-sm">
-                  <li>宿到着を16:30へ前倒しして夕食前の余裕を確保</li>
-                  <li>清津峡の雨天代替案を用意</li>
-                  <li>昼食混雑を見込んで予約か候補店を追加</li>
+                  {nextActions.map((action) => (
+                    <li key={action}>{action}</li>
+                  ))}
                 </ul>
               </div>
             </CardContent>
@@ -919,12 +1107,49 @@ export default function Home() {
               <div className="grid gap-4">
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
-                    <CardTitle className="flex items-center justify-between gap-3">
-                      予定された旅行
-                      <Button variant="outline" onClick={startNewTrip}>
-                        <Plus className="size-4" />
-                        新規登録
-                      </Button>
+                    <CardTitle className="flex flex-wrap items-center justify-between gap-3">
+                      <span className="flex items-center gap-2">
+                        <ListFilter className="size-5 text-teal-700" />
+                        予定された旅行
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="w-32">
+                          <SelectField
+                            label="旅行一覧の絞り込み"
+                            options={['すべて', '注意あり', '未入力あり']}
+                            value={
+                              tripFilter === 'attention'
+                                ? '注意あり'
+                                : tripFilter === 'missing'
+                                  ? '未入力あり'
+                                  : 'すべて'
+                            }
+                            onChange={(value) =>
+                              setTripFilter(
+                                value === '注意あり'
+                                  ? 'attention'
+                                  : value === '未入力あり'
+                                    ? 'missing'
+                                    : 'all',
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="w-32">
+                          <SelectField
+                            label="旅行一覧の並び順"
+                            options={['出発日順', 'リスク順']}
+                            value={tripSort === 'risk' ? 'リスク順' : '出発日順'}
+                            onChange={(value) =>
+                              setTripSort(value === 'リスク順' ? 'risk' : 'date')
+                            }
+                          />
+                        </div>
+                        <Button variant="outline" onClick={startNewTrip}>
+                          <Plus className="size-4" />
+                          新規登録
+                        </Button>
+                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
@@ -932,10 +1157,15 @@ export default function Home() {
                       <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
                         予定された旅行はまだありません。新規登録から旅行・宿・旅程を入力できます。
                       </div>
+                    ) : displayedTrips.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                        条件に合う旅行はありません。絞り込みを変更してください。
+                      </div>
                     ) : (
-                      trips.map((trip) => {
+                      displayedTrips.map(({ trip, risk, missing }) => {
                         const tripDays = daysUntil(trip.travel.startDate);
                         const isSelected = selectedTripId === trip.id;
+                        const tone = riskTone(risk.riskPercent);
                         return (
                           <div
                             key={trip.id}
@@ -950,6 +1180,12 @@ export default function Home() {
                                 <p className="font-medium text-slate-900">
                                   {trip.travel.name}
                                 </p>
+                                <Badge className={tone.badge}>
+                                  {risk.riskPercent}%
+                                </Badge>
+                                {missing && (
+                                  <Badge variant="outline">未入力あり</Badge>
+                                )}
                                 {isSelected && (
                                   <Badge className="bg-emerald-900 text-white">
                                     編集中
@@ -966,8 +1202,18 @@ export default function Home() {
                                 {trip.itinerary.length}件
                                 {tripDays !== null && ` / 出発まであと${tripDays}日`}
                               </p>
+                              <p className="text-xs text-slate-500">
+                                最も注意: {topRiskLabel(risk)}
+                              </p>
                             </div>
                             <div className="flex flex-wrap gap-2 self-center sm:justify-end">
+                              <Button
+                                onClick={() => openTripDetail(trip)}
+                                variant="outline"
+                              >
+                                <Eye className="size-4" />
+                                詳細
+                              </Button>
                               <Button
                                 onClick={() => editTrip(trip)}
                                 variant={isSelected ? 'secondary' : 'outline'}
@@ -991,10 +1237,10 @@ export default function Home() {
                 </Card>
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
-                    <CardTitle>現在の診断サマリー</CardTitle>
+                    <CardTitle>直近旅行の診断サマリー</CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
-                    {Object.entries(itineraryDiagnosis.categoryScores).map(
+                    {Object.entries(topItineraryDiagnosis.categoryScores).map(
                       ([label, value]) => (
                         <MiniBar key={label} label={label} value={value} />
                       ),
@@ -1006,7 +1252,7 @@ export default function Home() {
                     <CardTitle>AIが見つけた問題点</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {itineraryDiagnosis.issues.slice(0, 5).map((issue) => (
+                    {topItineraryDiagnosis.issues.slice(0, 5).map((issue) => (
                       <div
                         key={issue}
                         className="flex gap-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
@@ -1019,6 +1265,176 @@ export default function Home() {
                 </Card>
               </div>
             )}
+
+            {activeTab === '旅行詳細' &&
+              detailTrip &&
+              detailRiskDiagnosis &&
+              detailHotelDiagnosis &&
+              detailItineraryDiagnosis && (
+                <div className="space-y-4">
+                  <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="flex flex-wrap items-center justify-between gap-3">
+                        <span>{detailTrip.travel.name}の詳細</span>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            onClick={() => editTrip(detailTrip)}
+                            variant="outline"
+                          >
+                            <Pencil className="size-4" />
+                            旅行の予定を編集
+                          </Button>
+                          <Button
+                            className="bg-emerald-900 hover:bg-emerald-800"
+                            onClick={() => openRiskDetail(detailTrip)}
+                          >
+                            <ShieldAlert className="size-4" />
+                            リスク診断を見る
+                          </Button>
+                        </div>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-lg bg-slate-50 p-3">
+                          <p className="text-xs text-slate-500">日程</p>
+                          <p className="mt-1 text-sm font-medium text-slate-900">
+                            {detailTrip.travel.startDate || '未設定'} -{' '}
+                            {detailTrip.travel.endDate || '未設定'}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-slate-50 p-3">
+                          <p className="text-xs text-slate-500">出発・人数</p>
+                          <p className="mt-1 text-sm font-medium text-slate-900">
+                            {detailTrip.travel.origin || '未設定'} /{' '}
+                            {detailTrip.travel.people}名
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-slate-50 p-3">
+                          <p className="text-xs text-slate-500">移動手段</p>
+                          <p className="mt-1 text-sm font-medium text-slate-900">
+                            {detailTrip.travel.transport}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-slate-50 p-3">
+                          <p className="text-xs text-slate-500">予算</p>
+                          <p className="mt-1 text-sm font-medium text-slate-900">
+                            ¥{currency(detailTrip.travel.budget)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+                        <Card className="rounded-lg border-slate-200 bg-white shadow-none">
+                          <CardHeader>
+                            <CardTitle className="text-base">宿</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2 text-sm text-slate-700">
+                            <p className="font-medium text-slate-900">
+                              {detailTrip.accommodation.name || '宿未設定'}
+                            </p>
+                            <p>{detailTrip.accommodation.location || '所在地未設定'}</p>
+                            <p>
+                              チェックイン {detailTrip.accommodation.checkIn || '未設定'} / 
+                              チェックアウト {detailTrip.accommodation.checkOut || '未設定'}
+                            </p>
+                            <p>
+                              夕食 {detailTrip.accommodation.dinner || '未設定'} / 
+                              朝食 {detailTrip.accommodation.breakfast || '未設定'}
+                            </p>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="rounded-lg border-slate-200 bg-white shadow-none">
+                          <CardHeader>
+                            <CardTitle className="text-base">診断サマリー</CardTitle>
+                          </CardHeader>
+                          <CardContent className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                            <MiniBar label="宿相性" value={detailHotelDiagnosis.score} />
+                            <MiniBar
+                              label="旅程"
+                              value={detailItineraryDiagnosis.score}
+                            />
+                            <MiniBar
+                              label="リスク耐性"
+                              value={100 - detailRiskDiagnosis.riskPercent}
+                            />
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+                        <Card className="rounded-lg border-slate-200 bg-white shadow-none">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-base">
+                              <ClipboardList className="size-4 text-teal-700" />
+                              旅程
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-2">
+                            {detailTrip.itinerary.length === 0 ? (
+                              <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+                                旅程はまだ登録されていません。
+                              </p>
+                            ) : (
+                              detailTrip.itinerary.map((item) => (
+                                <div
+                                  className="grid gap-1 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-[110px_1fr_auto]"
+                                  key={item.id}
+                                >
+                                  <p className="font-medium text-slate-700">
+                                    {item.start} - {item.end}
+                                  </p>
+                                  <div>
+                                    <p className="font-medium text-slate-900">
+                                      {item.title}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      {item.place || '場所未設定'}
+                                    </p>
+                                  </div>
+                                  <Badge variant="outline">{item.category}</Badge>
+                                </div>
+                              ))
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        <Card className="rounded-lg border-amber-200 bg-amber-50 shadow-none">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-base text-amber-950">
+                              <AlertTriangle className="size-4" />
+                              リスク要点
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3 text-sm text-amber-950">
+                            <p>{detailRiskDiagnosis.critical}</p>
+                            <div className="rounded-lg bg-white/70 p-3 text-slate-700">
+                              <p className="font-medium text-slate-900">
+                                次にやること
+                              </p>
+                              <ul className="mt-2 space-y-2">
+                                {buildNextActions(detailTrip, detailRiskDiagnosis).map(
+                                  (action) => (
+                                    <li key={action}>{action}</li>
+                                  ),
+                                )}
+                              </ul>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <div className="rounded-lg bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-950">
+                        <p className="font-medium">旅行メモ</p>
+                        <p className="mt-1">
+                          {detailTrip.travel.memo || 'メモはまだ登録されていません。'}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
             {activeTab === 'プロフィール' && (
               <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
@@ -1060,7 +1476,9 @@ export default function Home() {
               <div className="space-y-4">
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
-                    <CardTitle>旅行の予定を編集</CardTitle>
+                    <CardTitle>
+                      {selectedTripId ? '旅行の予定を編集' : '旅行の予定を登録'}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5 sm:col-span-2">
@@ -1528,10 +1946,7 @@ export default function Home() {
                       </div>
                     ) : (
                       trips.map((trip) => {
-                        const tripRisk = mockAiProvider.forecastRisk(
-                          trip.travel,
-                          trip.itinerary,
-                        );
+                        const tripRisk = buildContextualRisk(trip);
                         const tone = riskTone(tripRisk.riskPercent);
                         const isOpen = riskDetailTrip?.id === trip.id;
                         return (
@@ -1596,7 +2011,16 @@ export default function Home() {
                   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
                     <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                       <CardHeader>
-                        <CardTitle>{riskDetailTrip.travel.name}のリスク詳細</CardTitle>
+                        <CardTitle className="flex flex-wrap items-center justify-between gap-3">
+                          <span>{riskDetailTrip.travel.name}のリスク詳細</span>
+                          <Button
+                            onClick={() => editTrip(riskDetailTrip)}
+                            variant="outline"
+                          >
+                            <Pencil className="size-4" />
+                            この旅行の旅程を編集
+                          </Button>
+                        </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-5">
                         <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
@@ -1801,15 +2225,15 @@ export default function Home() {
               <CardContent className="space-y-3 text-sm">
                 <p className="flex items-center gap-2 text-slate-600">
                   <CalendarDays className="size-4 text-teal-700" />
-                  {travel.startDate || '日程未設定'} -{' '}
-                  {travel.endDate || '日程未設定'}
+                  {topTravel.startDate || '日程未設定'} -{' '}
+                  {topTravel.endDate || '日程未設定'}
                 </p>
                 <p className="flex items-center gap-2 text-slate-600">
                   <Train className="size-4 text-teal-700" />
-                  {travel.transport} / 予算 ¥{currency(travel.budget)}
+                  {topTravel.transport} / 予算 ¥{currency(topTravel.budget)}
                 </p>
                 <p className="rounded-lg bg-slate-50 p-3 text-slate-600">
-                  {travel.memo}
+                  {topTravel.memo || 'メモはまだ登録されていません。'}
                 </p>
               </CardContent>
             </Card>
