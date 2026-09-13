@@ -1669,6 +1669,45 @@ export default function Home() {
                   </CardContent>
                 </Card>
 
+                {selectedTripId && (
+                  <Card className="rounded-lg border-teal-200 bg-teal-50 shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Sparkles className="size-5 text-teal-700" />
+                        AIで改善
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-slate-700">
+                        改善前：{itineraryDiagnosis.score}点 / 改善後：
+                        {improved ? itineraryDiagnosis.score : improvedScore}点
+                      </p>
+                      <div className="grid gap-2 text-sm text-slate-700">
+                        <p>カフェを15:30から15:05へ変更し、滞在を短縮</p>
+                        <p>清津峡の滞在を90分から70分へ変更</p>
+                        <p>宿到着予定を16:30へ前倒し</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          className="bg-teal-800 hover:bg-teal-700"
+                          onClick={applyImprovement}
+                        >
+                          <Check className="size-4" />
+                          改善案を採用
+                        </Button>
+                        <Button
+                          disabled={!previousItinerary}
+                          onClick={undoImprovement}
+                          variant="outline"
+                        >
+                          <RotateCcw className="size-4" />
+                          元に戻す
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between gap-3">
@@ -1797,42 +1836,6 @@ export default function Home() {
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-lg border-teal-200 bg-teal-50 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Sparkles className="size-5 text-teal-700" />
-                      AIで改善
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-slate-700">
-                      改善前：{itineraryDiagnosis.score}点 / 改善後：
-                      {improved ? itineraryDiagnosis.score : improvedScore}点
-                    </p>
-                    <div className="grid gap-2 text-sm text-slate-700">
-                      <p>カフェを15:30から15:05へ変更し、滞在を短縮</p>
-                      <p>清津峡の滞在を90分から70分へ変更</p>
-                      <p>宿到着予定を16:30へ前倒し</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        className="bg-teal-800 hover:bg-teal-700"
-                        onClick={applyImprovement}
-                      >
-                        <Check className="size-4" />
-                        改善案を採用
-                      </Button>
-                      <Button
-                        disabled={!previousItinerary}
-                        onClick={undoImprovement}
-                        variant="outline"
-                      >
-                        <RotateCcw className="size-4" />
-                        元に戻す
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             )}
 
