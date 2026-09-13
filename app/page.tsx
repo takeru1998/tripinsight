@@ -183,7 +183,7 @@ const preferenceLabels: Record<PreferenceKey, string> = {
 };
 
 const tabs = [
-  '概要',
+  'ホーム',
   '旅行登録',
   '宿診断',
   'リスク診断',
@@ -251,6 +251,14 @@ function daysUntil(date: string) {
     0,
     Math.ceil((target.getTime() - now.getTime()) / 86_400_000),
   );
+}
+
+function tripDateTime(record: TripRecord) {
+  if (!record.travel.startDate) return Number.POSITIVE_INFINITY;
+  const target = new Date(`${record.travel.startDate}T00:00:00-07:00`);
+  return Number.isNaN(target.getTime())
+    ? Number.POSITIVE_INFINITY
+    : target.getTime();
 }
 
 function scoreTone(score: number) {
@@ -499,7 +507,7 @@ function buildRiskChecks(record: TripRecord) {
 }
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState('概要');
+  const [activeTab, setActiveTab] = useState('ホーム');
   const [preference, setPreference] =
     useState<UserTravelPreference>(mockPreference);
   const [travel, setTravel] = useState<Travel>(mockTravel);
@@ -605,11 +613,34 @@ export default function Home() {
     () => (riskDetailTrip ? buildRiskChecks(riskDetailTrip) : []),
     [riskDetailTrip],
   );
-  const remainingDays = daysUntil(travel.startDate);
+  const nearestTrip = useMemo(() => {
+    const now = new Date('2026-09-13T00:00:00-07:00').getTime();
+    const futureTrips = trips
+      .filter((trip) => tripDateTime(trip) >= now)
+      .sort((a, b) => tripDateTime(a) - tripDateTime(b));
+    return futureTrips[0] ?? trips[0] ?? null;
+  }, [trips]);
+  const topTravel = nearestTrip?.travel ?? travel;
+  const topAccommodation = nearestTrip?.accommodation ?? accommodation;
+  const topItinerary = nearestTrip?.itinerary ?? itinerary;
+  const topHotelDiagnosis = useMemo(
+    () => mockAiProvider.diagnoseHotel(preference, topAccommodation),
+    [preference, topAccommodation],
+  );
+  const topItineraryDiagnosis = useMemo(
+    () =>
+      mockAiProvider.judgeItinerary(topTravel, topAccommodation, topItinerary),
+    [topTravel, topAccommodation, topItinerary],
+  );
+  const topRiskDiagnosis = useMemo(
+    () => mockAiProvider.forecastRisk(topTravel, topItinerary),
+    [topTravel, topItinerary],
+  );
+  const remainingDays = daysUntil(topTravel.startDate);
   const overallScore = Math.round(
-    hotelDiagnosis.score * 0.35 +
-      itineraryDiagnosis.score * 0.4 +
-      (100 - riskDiagnosis.riskPercent) * 0.25,
+    topHotelDiagnosis.score * 0.35 +
+      topItineraryDiagnosis.score * 0.4 +
+      (100 - topRiskDiagnosis.riskPercent) * 0.25,
   );
   const improvedScore = Math.min(96, itineraryDiagnosis.score + 17);
 
@@ -798,12 +829,19 @@ export default function Home() {
                   )}
                   <div>
                     <h1 className="text-2xl font-semibold leading-tight sm:text-3xl">
-                      {travel.name || '新しい旅行'}
+                      {topTravel.name || '予定された旅行'}
                     </h1>
                     <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
                       <MapPin className="size-4" />
-                      {travel.origin || '出発地未設定'}発 / {travel.companion} /{' '}
-                      {travel.people}名
+                      {topTravel.origin || '出発地未設定'}発 /{' '}
+                      {topTravel.companion} / {topTravel.people}名
+                    </p>
+                    <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                      <CalendarDays className="size-4" />
+                      {topTravel.startDate || '日程未設定'} -{' '}
+                      {topTravel.endDate || '日程未設定'} /{' '}
+                      {topAccommodation.name || '宿未設定'} / 旅程
+                      {topItinerary.length}件
                     </p>
                   </div>
                 </div>
@@ -815,19 +853,19 @@ export default function Home() {
               <div className="grid gap-3 sm:grid-cols-3">
                 <ScoreCard
                   title="宿相性"
-                  value={hotelDiagnosis.score}
+                  value={topHotelDiagnosis.score}
                   icon={Bed}
                   caption="口コミ点ではなく、あなたの好みとの一致を評価"
                 />
                 <ScoreCard
                   title="旅程"
-                  value={itineraryDiagnosis.score}
+                  value={topItineraryDiagnosis.score}
                   icon={Route}
                   caption="時間余裕、疲労、宿到着との整合性を診断"
                 />
                 <ScoreCard
                   title="耐性"
-                  value={100 - riskDiagnosis.riskPercent}
+                  value={100 - topRiskDiagnosis.riskPercent}
                   icon={CloudRain}
                   caption="天気・遅延・混雑に対する強さ"
                 />
@@ -844,7 +882,7 @@ export default function Home() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm leading-relaxed text-amber-950">
-                {riskDiagnosis.critical}
+                {topRiskDiagnosis.critical}
               </p>
               <div className="rounded-lg bg-white/70 p-3 text-sm text-slate-700">
                 最も改善すべき3点
@@ -877,7 +915,7 @@ export default function Home() {
 
         <section className="grid flex-1 gap-4 pb-28 pt-5 sm:pb-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-4">
-            {activeTab === '概要' && (
+            {activeTab === 'ホーム' && (
               <div className="grid gap-4">
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
@@ -1022,7 +1060,7 @@ export default function Home() {
               <div className="space-y-4">
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
-                    <CardTitle>新しい旅行を登録</CardTitle>
+                    <CardTitle>旅行の予定を編集</CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-1.5 sm:col-span-2">
