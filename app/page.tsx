@@ -1538,106 +1538,117 @@ export default function Home() {
             {activeTab === '旅行登録' && (
               <div className="space-y-4">
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
-                  <CardHeader>
+                  <CardHeader className="pb-2">
                     <CardTitle>
                       {selectedTripId ? '旅行の予定を編集' : '旅行の予定を登録'}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="flex flex-wrap items-end gap-4">
-                    <div className="w-full space-y-1.5 sm:flex-[1_1_360px]">
-                      <FieldLabel>旅行名</FieldLabel>
-                      <Input
-                        value={travel.name}
-                        onChange={(event) =>
-                          setTravel({ ...travel, name: event.target.value })
-                        }
-                      />
+                  <CardContent className="space-y-3">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_136px_136px]">
+                      <div className="min-w-0 space-y-1">
+                        <FieldLabel>旅行名</FieldLabel>
+                        <Input
+                          value={travel.name}
+                          onChange={(event) =>
+                            setTravel({ ...travel, name: event.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <FieldLabel>出発日</FieldLabel>
+                        <Input
+                          type="date"
+                          value={travel.startDate}
+                          onChange={(event) =>
+                            setTravel({
+                              ...travel,
+                              startDate: event.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <FieldLabel>帰宅日</FieldLabel>
+                        <Input
+                          type="date"
+                          value={travel.endDate}
+                          onChange={(event) =>
+                            setTravel({ ...travel, endDate: event.target.value })
+                          }
+                        />
+                      </div>
                     </div>
-                    <div className="w-[150px] space-y-1.5">
-                      <FieldLabel>出発日</FieldLabel>
-                      <Input
-                        type="date"
-                        value={travel.startDate}
-                        onChange={(event) =>
-                          setTravel({ ...travel, startDate: event.target.value })
-                        }
-                      />
+
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(150px,190px)_104px_104px_72px_128px]">
+                      <div className="min-w-0 space-y-1">
+                        <FieldLabel>出発地</FieldLabel>
+                        <Input
+                          value={travel.origin}
+                          onChange={(event) =>
+                            setTravel({ ...travel, origin: event.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <FieldLabel>移動手段</FieldLabel>
+                        <SelectField
+                          label="移動手段"
+                          options={['車', '電車', '飛行機', 'その他']}
+                          value={travel.transport}
+                          onChange={(value) =>
+                            setTravel({
+                              ...travel,
+                              transport: value as Travel['transport'],
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <FieldLabel>同行者</FieldLabel>
+                        <SelectField
+                          label="同行者"
+                          options={['一人', 'カップル', '夫婦', '友人', '家族']}
+                          value={travel.companion}
+                          onChange={(value) =>
+                            setTravel({
+                              ...travel,
+                              companion: value as Travel['companion'],
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <FieldLabel>人数</FieldLabel>
+                        <Input
+                          className="px-2 text-center"
+                          min="1"
+                          type="number"
+                          value={travel.people}
+                          onChange={(event) =>
+                            setTravel({
+                              ...travel,
+                              people: Number(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="min-w-0 space-y-1">
+                        <FieldLabel>旅行予算</FieldLabel>
+                        <Input
+                          className="px-2"
+                          type="number"
+                          value={travel.budget}
+                          onChange={(event) =>
+                            setTravel({
+                              ...travel,
+                              budget: Number(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
                     </div>
-                    <div className="w-[150px] space-y-1.5">
-                      <FieldLabel>帰宅日</FieldLabel>
-                      <Input
-                        type="date"
-                        value={travel.endDate}
-                        onChange={(event) =>
-                          setTravel({ ...travel, endDate: event.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="w-full space-y-1.5 sm:w-56">
-                      <FieldLabel>出発地</FieldLabel>
-                      <Input
-                        value={travel.origin}
-                        onChange={(event) =>
-                          setTravel({ ...travel, origin: event.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="w-32 space-y-1.5">
-                      <FieldLabel>移動手段</FieldLabel>
-                      <SelectField
-                        label="移動手段"
-                        options={['車', '電車', '飛行機', 'その他']}
-                        value={travel.transport}
-                        onChange={(value) =>
-                          setTravel({
-                            ...travel,
-                            transport: value as Travel['transport'],
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="w-32 space-y-1.5">
-                      <FieldLabel>同行者</FieldLabel>
-                      <SelectField
-                        label="同行者"
-                        options={['一人', 'カップル', '夫婦', '友人', '家族']}
-                        value={travel.companion}
-                        onChange={(value) =>
-                          setTravel({
-                            ...travel,
-                            companion: value as Travel['companion'],
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="w-24 space-y-1.5">
-                      <FieldLabel>人数</FieldLabel>
-                      <Input
-                        min="1"
-                        type="number"
-                        value={travel.people}
-                        onChange={(event) =>
-                          setTravel({
-                            ...travel,
-                            people: Number(event.target.value),
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="w-40 space-y-1.5">
-                      <FieldLabel>旅行予算</FieldLabel>
-                      <Input
-                        type="number"
-                        value={travel.budget}
-                        onChange={(event) =>
-                          setTravel({
-                            ...travel,
-                            budget: Number(event.target.value),
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="w-full space-y-1.5">
+
+                    <div className="space-y-1">
                       <FieldLabel>自由入力メモ</FieldLabel>
                       <Textarea
                         value={travel.memo}
@@ -1646,7 +1657,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="flex w-full flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 pt-1">
                       <Button
                         className="bg-teal-800 hover:bg-teal-700"
                         onClick={saveCurrentTrip}
