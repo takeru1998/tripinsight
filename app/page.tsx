@@ -822,11 +822,6 @@ export default function Home() {
       });
   }, [trips, tripFilter, tripSort]);
   const remainingDays = daysUntil(topTravel.startDate);
-  const overallScore = Math.round(
-    topHotelDiagnosis.score * 0.35 +
-      topItineraryDiagnosis.score * 0.4 +
-      (100 - topRiskDiagnosis.riskPercent) * 0.25,
-  );
   const improvedScore = Math.min(96, itineraryDiagnosis.score + 17);
 
   function updatePreference(key: PreferenceKey, value: number) {
@@ -921,7 +916,7 @@ export default function Home() {
       }
       return [record, ...items];
     });
-    setSaveState('旅行一覧に保存しました');
+    setSaveState('保存しました');
   }
 
   function editTrip(record: TripRecord) {
@@ -934,7 +929,7 @@ export default function Home() {
     setPreviousItinerary(null);
     setImproved(false);
     setActiveTab('旅行登録');
-    setSaveState(`${record.travel.name}を編集中`);
+    setSaveState(`${record.travel.name}を表示中`);
   }
 
   function scrollToRiskDetail() {
@@ -1064,10 +1059,6 @@ export default function Home() {
                       {topItinerary.length}件
                     </p>
                   </div>
-                </div>
-                <div className="rounded-lg bg-[linear-gradient(135deg,#052e2b_0%,#0f766e_100%)] px-5 py-4 text-right text-white shadow-lg shadow-emerald-950/20">
-                  <p className="text-xs text-emerald-100">旅行総合スコア</p>
-                  <p className="text-4xl font-semibold">{overallScore}</p>
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
@@ -1217,11 +1208,6 @@ export default function Home() {
                                 </Badge>
                                 {missing && (
                                   <Badge variant="outline">未入力あり</Badge>
-                                )}
-                                {isSelected && (
-                                  <Badge className="bg-emerald-900 text-white">
-                                    編集中
-                                  </Badge>
                                 )}
                               </div>
                               <p className="text-xs text-slate-500">
@@ -1663,7 +1649,7 @@ export default function Home() {
                         onClick={saveCurrentTrip}
                       >
                         <Save className="size-4" />
-                        旅行一覧に保存
+                        保存
                       </Button>
                       <Button
                         className="bg-emerald-900 hover:bg-emerald-800"
