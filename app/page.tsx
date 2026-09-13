@@ -309,7 +309,7 @@ function SelectField({
   return (
     <select
       aria-label={label}
-      className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -1543,8 +1543,8 @@ export default function Home() {
                       {selectedTripId ? '旅行の予定を編集' : '旅行の予定を登録'}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_136px_136px]">
+                  <CardContent className="max-w-[760px] space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-[minmax(180px,280px)_132px_132px]">
                       <div className="min-w-0 space-y-1">
                         <FieldLabel>旅行名</FieldLabel>
                         <Input
@@ -1579,7 +1579,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-[minmax(150px,190px)_104px_104px_72px_128px]">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-[160px_88px_92px_64px_112px]">
                       <div className="min-w-0 space-y-1">
                         <FieldLabel>出発地</FieldLabel>
                         <Input
