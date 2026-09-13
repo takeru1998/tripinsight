@@ -14,11 +14,14 @@ import {
   RotateCcw,
   Route,
   Save,
+  ShieldAlert,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  TimerReset,
   Trash2,
   Train,
+  Umbrella,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -45,6 +48,7 @@ import type {
   Accommodation,
   ItineraryItem,
   PreferenceKey,
+  RiskDiagnosis,
   Travel,
   TravelReview,
   UserTravelPreference,
@@ -58,6 +62,7 @@ type TripCheckState = {
   review: TravelReview;
   trips?: TripRecord[];
   selectedTripId?: string | null;
+  riskDetailTripId?: string | null;
 };
 
 type TripRecord = {
@@ -414,6 +419,85 @@ function MiniBar({ label, value }: { label: string; value: number }) {
   );
 }
 
+function riskTone(percent: number) {
+  if (percent >= 70) {
+    return {
+      label: '高リスク',
+      badge: 'bg-rose-100 text-rose-800',
+      bar: 'bg-rose-500',
+      text: 'text-rose-700',
+    };
+  }
+  if (percent >= 50) {
+    return {
+      label: '注意',
+      badge: 'bg-amber-100 text-amber-800',
+      bar: 'bg-amber-500',
+      text: 'text-amber-700',
+    };
+  }
+  return {
+    label: '低リスク',
+    badge: 'bg-emerald-100 text-emerald-800',
+    bar: 'bg-emerald-600',
+    text: 'text-emerald-700',
+  };
+}
+
+function topRiskLabel(risk: RiskDiagnosis) {
+  const [label, value] = Object.entries(risk.categoryRisks).sort(
+    (a, b) => b[1] - a[1],
+  )[0] ?? ['未判定', 0];
+  return `${label} ${value}`;
+}
+
+function buildAvoidancePlans(record: TripRecord, risk: RiskDiagnosis) {
+  const plans = [
+    `${record.travel.transport}移動は、出発前日の夜に遅延・運休・渋滞情報を確認し、30分早い代替ルートを1つ控える`,
+    '屋外予定は午前寄せ、雨天時は屋内施設・宿ラウンジ・駅周辺散策へ切り替える',
+    '昼食や人気店は第2候補まで決め、混雑時は予約済み/回転の早い店へ移す',
+  ];
+
+  if (record.accommodation.dinner) {
+    plans.push(
+      `${record.accommodation.dinner}の夕食に対して、宿到着は少なくとも60分前を目標にする`,
+    );
+  }
+  if (risk.categoryRisks.駐車場リスク >= 40) {
+    plans.push('駐車場は満車時の近隣候補と支払い方法を事前に確認する');
+  }
+  if (record.itinerary.length >= 4) {
+    plans.push('優先度が低い予定を1つ「削る候補」にして、当日の疲労で即調整できるようにする');
+  }
+
+  return plans;
+}
+
+function buildRiskChecks(record: TripRecord) {
+  return [
+    {
+      label: '前日18時',
+      title: '天気と服装',
+      text: '雨量・気温差・傘や防寒具の要否を確認',
+    },
+    {
+      label: '当日朝',
+      title: '交通状況',
+      text: `${record.travel.transport}の遅延、道路混雑、乗換余裕を確認`,
+    },
+    {
+      label: '3日前',
+      title: '予約と営業時間',
+      text: '食事・観光・送迎・チェックイン条件を再確認',
+    },
+    {
+      label: '出発前',
+      title: 'キャンセル条件',
+      text: '宿・体験・交通の締切と連絡先を控える',
+    },
+  ];
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState('概要');
   const [preference, setPreference] =
@@ -425,6 +509,9 @@ export default function Home() {
   const [review, setReview] = useState<TravelReview>(mockReview);
   const [trips, setTrips] = useState<TripRecord[]>(mockTrips);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(
+    mockTravel.id,
+  );
+  const [riskDetailTripId, setRiskDetailTripId] = useState<string | null>(
     mockTravel.id,
   );
   const [improved, setImproved] = useState(false);
@@ -448,6 +535,9 @@ export default function Home() {
       if ('selectedTripId' in stored) {
         setSelectedTripId(stored.selectedTripId ?? null);
       }
+      if ('riskDetailTripId' in stored) {
+        setRiskDetailTripId(stored.riskDetailTripId ?? null);
+      }
       setSaveState('保存済みデータを読み込みました');
     } catch {
       setSaveState('保存データを読み込めませんでした');
@@ -463,6 +553,7 @@ export default function Home() {
       review,
       trips,
       selectedTripId,
+      riskDetailTripId,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(state));
   }, [
@@ -473,6 +564,7 @@ export default function Home() {
     review,
     trips,
     selectedTripId,
+    riskDetailTripId,
   ]);
 
   const hotelDiagnosis = useMemo(
@@ -486,6 +578,32 @@ export default function Home() {
   const riskDiagnosis = useMemo(
     () => mockAiProvider.forecastRisk(travel, itinerary),
     [travel, itinerary],
+  );
+  const riskDetailTrip = useMemo(
+    () =>
+      trips.find((trip) => trip.id === riskDetailTripId) ?? trips[0] ?? null,
+    [trips, riskDetailTripId],
+  );
+  const riskDetailDiagnosis = useMemo(
+    () =>
+      riskDetailTrip
+        ? mockAiProvider.forecastRisk(
+            riskDetailTrip.travel,
+            riskDetailTrip.itinerary,
+          )
+        : null,
+    [riskDetailTrip],
+  );
+  const riskDetailPlans = useMemo(
+    () =>
+      riskDetailTrip && riskDetailDiagnosis
+        ? buildAvoidancePlans(riskDetailTrip, riskDetailDiagnosis)
+        : [],
+    [riskDetailTrip, riskDetailDiagnosis],
+  );
+  const riskDetailChecks = useMemo(
+    () => (riskDetailTrip ? buildRiskChecks(riskDetailTrip) : []),
+    [riskDetailTrip],
   );
   const remainingDays = daysUntil(travel.startDate);
   const overallScore = Math.round(
@@ -535,6 +653,7 @@ export default function Home() {
     setReview(mockReview);
     setTrips(mockTrips);
     setSelectedTripId(mockTravel.id);
+    setRiskDetailTripId(mockTravel.id);
     setImproved(false);
     setPreviousItinerary(null);
     setSaveState('モック旅行に戻しました');
@@ -549,6 +668,7 @@ export default function Home() {
     setItinerary([]);
     setReview(emptyReview);
     setSelectedTripId(null);
+    setRiskDetailTripId(null);
     setPreviousItinerary(null);
     setImproved(false);
     setActiveTab('旅行登録');
@@ -572,6 +692,7 @@ export default function Home() {
 
     setTravel(savedTravel);
     setSelectedTripId(id);
+    setRiskDetailTripId(id);
     setTrips((items) => {
       const exists = items.some((item) => item.id === id);
       if (exists) {
@@ -592,6 +713,19 @@ export default function Home() {
     setImproved(false);
     setActiveTab('旅行登録');
     setSaveState(`${record.travel.name}を編集中`);
+  }
+
+  function openRiskDetail(record: TripRecord) {
+    setTravel(record.travel);
+    setAccommodation(record.accommodation);
+    setItinerary(record.itinerary);
+    setReview(record.review);
+    setSelectedTripId(record.id);
+    setRiskDetailTripId(record.id);
+    setPreviousItinerary(null);
+    setImproved(false);
+    setActiveTab('リスク診断');
+    setSaveState(`${record.travel.name}のリスク診断を表示中`);
   }
 
   function applyImprovement() {
@@ -795,14 +929,22 @@ export default function Home() {
                                 {tripDays !== null && ` / 出発まであと${tripDays}日`}
                               </p>
                             </div>
-                            <Button
-                              className="self-center"
-                              onClick={() => editTrip(trip)}
-                              variant={isSelected ? 'secondary' : 'outline'}
-                            >
-                              <Pencil className="size-4" />
-                              編集
-                            </Button>
+                            <div className="flex flex-wrap gap-2 self-center sm:justify-end">
+                              <Button
+                                onClick={() => editTrip(trip)}
+                                variant={isSelected ? 'secondary' : 'outline'}
+                              >
+                                <Pencil className="size-4" />
+                                編集
+                              </Button>
+                              <Button
+                                className="bg-emerald-900 hover:bg-emerald-800"
+                                onClick={() => openRiskDetail(trip)}
+                              >
+                                <ShieldAlert className="size-4" />
+                                リスク診断
+                              </Button>
+                            </div>
                           </div>
                         );
                       })
@@ -1333,35 +1475,191 @@ export default function Home() {
             )}
 
             {activeTab === 'リスク診断' && (
-              <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle>AI旅行トラブル予報</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  <div className="rounded-lg bg-slate-950 p-4 text-white">
-                    <p className="text-sm text-slate-300">
-                      明日の旅行 トラブルリスク
-                    </p>
-                    <p className="text-4xl font-semibold">
-                      {riskDiagnosis.riskPercent}%
-                    </p>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {Object.entries(riskDiagnosis.categoryRisks).map(
-                      ([label, value]) => (
-                        <MiniBar key={label} label={label} value={value} />
-                      ),
+              <div className="space-y-4">
+                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ShieldAlert className="size-5 text-amber-600" />
+                      旅行別リスク診断
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {trips.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                        予定された旅行はまだありません。旅行登録から保存すると、ここにリスク診断が表示されます。
+                      </div>
+                    ) : (
+                      trips.map((trip) => {
+                        const tripRisk = mockAiProvider.forecastRisk(
+                          trip.travel,
+                          trip.itinerary,
+                        );
+                        const tone = riskTone(tripRisk.riskPercent);
+                        const isOpen = riskDetailTrip?.id === trip.id;
+                        return (
+                          <div
+                            className={`grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_auto] ${
+                              isOpen
+                                ? 'border-emerald-700 bg-emerald-50'
+                                : 'border-slate-200 bg-white'
+                            }`}
+                            key={trip.id}
+                          >
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium text-slate-900">
+                                  {trip.travel.name}
+                                </p>
+                                <Badge className={tone.badge}>{tone.label}</Badge>
+                                {isOpen && (
+                                  <Badge className="bg-emerald-900 text-white">
+                                    詳細表示中
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                {trip.travel.startDate || '日程未設定'} -{' '}
+                                {trip.travel.endDate || '日程未設定'} /{' '}
+                                {trip.accommodation.name || '宿未設定'}
+                              </p>
+                              <div className="flex items-center gap-3">
+                                <div className="h-2 flex-1 rounded-full bg-slate-100">
+                                  <div
+                                    className={`h-full rounded-full ${tone.bar}`}
+                                    style={{ width: `${tripRisk.riskPercent}%` }}
+                                  />
+                                </div>
+                                <span
+                                  className={`w-12 text-right text-sm font-semibold ${tone.text}`}
+                                >
+                                  {tripRisk.riskPercent}%
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                最も注意: {topRiskLabel(tripRisk)}
+                              </p>
+                            </div>
+                            <Button
+                              className="self-center"
+                              onClick={() => openRiskDetail(trip)}
+                              variant={isOpen ? 'secondary' : 'outline'}
+                            >
+                              <ChevronRight className="size-4" />
+                              詳細
+                            </Button>
+                          </div>
+                        );
+                      })
                     )}
+                  </CardContent>
+                </Card>
+
+                {riskDetailTrip && riskDetailDiagnosis && (
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                    <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle>{riskDetailTrip.travel.name}のリスク詳細</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-5">
+                        <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
+                          <div className="rounded-lg bg-slate-950 p-4 text-white">
+                            <p className="text-sm text-slate-300">
+                              総合リスク
+                            </p>
+                            <p className="text-4xl font-semibold">
+                              {riskDetailDiagnosis.riskPercent}%
+                            </p>
+                            <p className="mt-2 text-xs text-slate-300">
+                              {riskTone(riskDetailDiagnosis.riskPercent).label}
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
+                            <div className="mb-2 flex items-center gap-2 font-medium">
+                              <AlertTriangle className="size-4" />
+                              最重要アラート
+                            </div>
+                            {riskDetailDiagnosis.critical}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {Object.entries(riskDetailDiagnosis.categoryRisks).map(
+                            ([label, value]) => (
+                              <MiniBar key={label} label={label} value={value} />
+                            ),
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-slate-900">
+                            主なリスク
+                          </p>
+                          {riskDetailDiagnosis.warnings.map((warning) => (
+                            <div
+                              className="flex gap-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
+                              key={warning}
+                            >
+                              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                              {warning}
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="space-y-4">
+                      <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Umbrella className="size-5 text-teal-700" />
+                            回避プラン
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {riskDetailPlans.map((plan, index) => (
+                            <div
+                              className="flex gap-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-950"
+                              key={plan}
+                            >
+                              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-900 text-xs font-semibold text-white">
+                                {index + 1}
+                              </span>
+                              <span>{plan}</span>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <TimerReset className="size-5 text-teal-700" />
+                            追加チェック
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          {riskDetailChecks.map((check) => (
+                            <div
+                              className="rounded-lg border border-slate-200 p-3"
+                              key={check.title}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="font-medium text-slate-900">
+                                  {check.title}
+                                </p>
+                                <Badge variant="outline">{check.label}</Badge>
+                              </div>
+                              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                                {check.text}
+                              </p>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    {riskDiagnosis.warnings.map((warning) => (
-                      <p key={warning} className="text-sm text-slate-700">
-                        {warning}
-                      </p>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             )}
 
             {activeTab === 'カルテ' && (
