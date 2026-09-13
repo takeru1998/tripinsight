@@ -9,6 +9,7 @@ import {
   CloudRain,
   CreditCard,
   MapPin,
+  Pencil,
   Plus,
   RotateCcw,
   Route,
@@ -55,9 +56,111 @@ type TripCheckState = {
   accommodation: Accommodation;
   itinerary: ItineraryItem[];
   review: TravelReview;
+  trips?: TripRecord[];
+  selectedTripId?: string | null;
+};
+
+type TripRecord = {
+  id: string;
+  travel: Travel;
+  accommodation: Accommodation;
+  itinerary: ItineraryItem[];
+  review: TravelReview;
 };
 
 const storageKey = 'tripcheck-mvp-state-v1';
+
+const emptyTravel: Travel = {
+  id: '',
+  name: '',
+  startDate: '',
+  endDate: '',
+  origin: '',
+  transport: '電車',
+  companion: '一人',
+  people: 1,
+  budget: 0,
+  memo: '',
+};
+
+const emptyAccommodation: Accommodation = {
+  name: '',
+  location: '',
+  price: 0,
+  checkIn: '',
+  checkOut: '',
+  dinner: '',
+  breakfast: '',
+  url: '',
+  note: '',
+};
+
+const emptyReview: TravelReview = {
+  hotelSatisfaction: 3,
+  foodSatisfaction: 3,
+  sightseeingSatisfaction: 3,
+  transitFatigue: 3,
+  scheduleAmount: 3,
+  overallSatisfaction: 3,
+  good: '',
+  failed: '',
+};
+
+const mockTrips: TripRecord[] = [
+  {
+    id: mockTravel.id,
+    travel: mockTravel,
+    accommodation: mockAccommodation,
+    itinerary: mockItinerary,
+    review: mockReview,
+  },
+  {
+    id: 'travel-hakone-002',
+    travel: {
+      ...mockTravel,
+      id: 'travel-hakone-002',
+      name: '箱根温泉リセット旅',
+      startDate: '2026-10-05',
+      endDate: '2026-10-06',
+      origin: '新宿駅',
+      transport: '電車',
+      companion: 'カップル',
+      budget: 76000,
+      memo: '移動を少なめにして温泉中心にしたい。',
+    },
+    accommodation: {
+      ...mockAccommodation,
+      name: '箱根 静庭の湯',
+      location: '神奈川県足柄下郡箱根町',
+    },
+    itinerary: [],
+    review: emptyReview,
+  },
+  {
+    id: 'travel-kyoto-003',
+    travel: {
+      ...mockTravel,
+      id: 'travel-kyoto-003',
+      name: '京都ゆっくり紅葉旅',
+      startDate: '2026-11-18',
+      endDate: '2026-11-20',
+      origin: '品川駅',
+      transport: '電車',
+      companion: '友人',
+      people: 3,
+      budget: 140000,
+      memo: '混雑を避けつつ紅葉と食事を楽しみたい。',
+    },
+    accommodation: {
+      ...mockAccommodation,
+      name: '東山 小径ホテル',
+      location: '京都府京都市東山区',
+      dinner: '',
+    },
+    itinerary: [],
+    review: emptyReview,
+  },
+];
 
 const preferenceLabels: Record<PreferenceKey, string> = {
   onsen: '温泉',
@@ -135,8 +238,10 @@ function currency(value: number) {
 }
 
 function daysUntil(date: string) {
+  if (!date) return null;
   const now = new Date('2026-09-13T00:00:00-07:00');
   const target = new Date(`${date}T00:00:00-07:00`);
+  if (Number.isNaN(target.getTime())) return null;
   return Math.max(
     0,
     Math.ceil((target.getTime() - now.getTime()) / 86_400_000),
@@ -318,6 +423,10 @@ export default function Home() {
     useState<Accommodation>(mockAccommodation);
   const [itinerary, setItinerary] = useState<ItineraryItem[]>(mockItinerary);
   const [review, setReview] = useState<TravelReview>(mockReview);
+  const [trips, setTrips] = useState<TripRecord[]>(mockTrips);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(
+    mockTravel.id,
+  );
   const [improved, setImproved] = useState(false);
   const [previousItinerary, setPreviousItinerary] = useState<
     ItineraryItem[] | null
@@ -335,6 +444,10 @@ export default function Home() {
       if (stored.accommodation) setAccommodation(stored.accommodation);
       if (stored.itinerary) setItinerary(stored.itinerary);
       if (stored.review) setReview(stored.review);
+      if (stored.trips?.length) setTrips(stored.trips);
+      if ('selectedTripId' in stored) {
+        setSelectedTripId(stored.selectedTripId ?? null);
+      }
       setSaveState('保存済みデータを読み込みました');
     } catch {
       setSaveState('保存データを読み込めませんでした');
@@ -348,9 +461,19 @@ export default function Home() {
       accommodation,
       itinerary,
       review,
+      trips,
+      selectedTripId,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(state));
-  }, [preference, travel, accommodation, itinerary, review]);
+  }, [
+    preference,
+    travel,
+    accommodation,
+    itinerary,
+    review,
+    trips,
+    selectedTripId,
+  ]);
 
   const hotelDiagnosis = useMemo(
     () => mockAiProvider.diagnoseHotel(preference, accommodation),
@@ -364,6 +487,7 @@ export default function Home() {
     () => mockAiProvider.forecastRisk(travel, itinerary),
     [travel, itinerary],
   );
+  const remainingDays = daysUntil(travel.startDate);
   const overallScore = Math.round(
     hotelDiagnosis.score * 0.35 +
       itineraryDiagnosis.score * 0.4 +
@@ -409,9 +533,65 @@ export default function Home() {
     setAccommodation(mockAccommodation);
     setItinerary(mockItinerary);
     setReview(mockReview);
+    setTrips(mockTrips);
+    setSelectedTripId(mockTravel.id);
     setImproved(false);
     setPreviousItinerary(null);
     setSaveState('モック旅行に戻しました');
+  }
+
+  function startNewTrip() {
+    setTravel({
+      ...emptyTravel,
+      id: `travel-${Date.now()}`,
+    });
+    setAccommodation(emptyAccommodation);
+    setItinerary([]);
+    setReview(emptyReview);
+    setSelectedTripId(null);
+    setPreviousItinerary(null);
+    setImproved(false);
+    setActiveTab('旅行登録');
+    setSaveState('新規旅行を作成中');
+  }
+
+  function saveCurrentTrip() {
+    const id = selectedTripId || travel.id || `travel-${Date.now()}`;
+    const savedTravel = {
+      ...travel,
+      id,
+      name: travel.name || '名称未設定の旅行',
+    };
+    const record: TripRecord = {
+      id,
+      travel: savedTravel,
+      accommodation,
+      itinerary,
+      review,
+    };
+
+    setTravel(savedTravel);
+    setSelectedTripId(id);
+    setTrips((items) => {
+      const exists = items.some((item) => item.id === id);
+      if (exists) {
+        return items.map((item) => (item.id === id ? record : item));
+      }
+      return [record, ...items];
+    });
+    setSaveState('旅行一覧に保存しました');
+  }
+
+  function editTrip(record: TripRecord) {
+    setTravel(record.travel);
+    setAccommodation(record.accommodation);
+    setItinerary(record.itinerary);
+    setReview(record.review);
+    setSelectedTripId(record.id);
+    setPreviousItinerary(null);
+    setImproved(false);
+    setActiveTab('旅行登録');
+    setSaveState(`${record.travel.name}を編集中`);
   }
 
   function applyImprovement() {
@@ -456,7 +636,7 @@ export default function Home() {
             </div>
             <Button
               className="bg-emerald-900 hover:bg-emerald-800"
-              onClick={() => setActiveTab('旅行登録')}
+              onClick={startNewTrip}
             >
               <Plus className="size-4" />
               新しい旅行を診断
@@ -473,16 +653,23 @@ export default function Home() {
             <CardContent className="space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
-                  <Badge className="w-fit bg-teal-50 text-teal-800 ring-1 ring-teal-700/15">
-                    次の旅行まであと{daysUntil(travel.startDate)}日
-                  </Badge>
+                  {remainingDays === null ? (
+                    <Badge className="w-fit bg-slate-100 text-slate-700 ring-1 ring-slate-300">
+                      新規旅行を作成中
+                    </Badge>
+                  ) : (
+                    <Badge className="w-fit bg-teal-50 text-teal-800 ring-1 ring-teal-700/15">
+                      次の旅行まであと{remainingDays}日
+                    </Badge>
+                  )}
                   <div>
                     <h1 className="text-2xl font-semibold leading-tight sm:text-3xl">
-                      {travel.name}
+                      {travel.name || '新しい旅行'}
                     </h1>
                     <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
                       <MapPin className="size-4" />
-                      {travel.origin}発 / {travel.companion} / {travel.people}名
+                      {travel.origin || '出発地未設定'}発 / {travel.companion} /{' '}
+                      {travel.people}名
                     </p>
                   </div>
                 </div>
@@ -558,6 +745,70 @@ export default function Home() {
           <div className="space-y-4">
             {activeTab === '概要' && (
               <div className="grid gap-4">
+                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between gap-3">
+                      予定された旅行
+                      <Button variant="outline" onClick={startNewTrip}>
+                        <Plus className="size-4" />
+                        新規登録
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {trips.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                        予定された旅行はまだありません。新規登録から旅行・宿・旅程を入力できます。
+                      </div>
+                    ) : (
+                      trips.map((trip) => {
+                        const tripDays = daysUntil(trip.travel.startDate);
+                        const isSelected = selectedTripId === trip.id;
+                        return (
+                          <div
+                            key={trip.id}
+                            className={`grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_auto] ${
+                              isSelected
+                                ? 'border-emerald-700 bg-emerald-50'
+                                : 'border-slate-200 bg-white'
+                            }`}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium text-slate-900">
+                                  {trip.travel.name}
+                                </p>
+                                {isSelected && (
+                                  <Badge className="bg-emerald-900 text-white">
+                                    編集中
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                {trip.travel.startDate || '日程未設定'} -{' '}
+                                {trip.travel.endDate || '日程未設定'} /{' '}
+                                {trip.travel.transport} / {trip.travel.people}名
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {trip.accommodation.name || '宿未設定'} / 旅程{' '}
+                                {trip.itinerary.length}件
+                                {tripDays !== null && ` / 出発まであと${tripDays}日`}
+                              </p>
+                            </div>
+                            <Button
+                              className="self-center"
+                              onClick={() => editTrip(trip)}
+                              variant={isSelected ? 'secondary' : 'outline'}
+                            >
+                              <Pencil className="size-4" />
+                              編集
+                            </Button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </CardContent>
+                </Card>
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
                     <CardTitle>現在の診断サマリー</CardTitle>
@@ -735,6 +986,13 @@ export default function Home() {
                       />
                     </div>
                     <div className="flex flex-wrap gap-2 sm:col-span-2">
+                      <Button
+                        className="bg-teal-800 hover:bg-teal-700"
+                        onClick={saveCurrentTrip}
+                      >
+                        <Save className="size-4" />
+                        旅行一覧に保存
+                      </Button>
                       <Button
                         className="bg-emerald-900 hover:bg-emerald-800"
                         onClick={() => setActiveTab('宿診断')}
@@ -1207,7 +1465,8 @@ export default function Home() {
               <CardContent className="space-y-3 text-sm">
                 <p className="flex items-center gap-2 text-slate-600">
                   <CalendarDays className="size-4 text-teal-700" />
-                  {travel.startDate} - {travel.endDate}
+                  {travel.startDate || '日程未設定'} -{' '}
+                  {travel.endDate || '日程未設定'}
                 </p>
                 <p className="flex items-center gap-2 text-slate-600">
                   <Train className="size-4 text-teal-700" />
@@ -1221,20 +1480,30 @@ export default function Home() {
 
             <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
               <CardHeader>
-                <CardTitle>過去の旅行</CardTitle>
+                <CardTitle>予定された旅行</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {['箱根温泉リセット旅', '京都ゆっくり紅葉旅', '軽井沢カフェ巡り'].map(
-                  (name) => (
+                {trips.length === 0 ? (
+                  <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
+                    保存された旅行はまだありません。
+                  </p>
+                ) : (
+                  trips.slice(0, 3).map((trip) => (
                     <button
-                      key={name}
+                      key={trip.id}
                       className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left text-sm hover:bg-slate-50"
+                      onClick={() => editTrip(trip)}
                       type="button"
                     >
-                      {name}
+                      <span>
+                        <span className="block font-medium">{trip.travel.name}</span>
+                        <span className="block text-xs text-slate-500">
+                          {trip.travel.startDate || '日程未設定'}
+                        </span>
+                      </span>
                       <ChevronRight className="size-4 text-slate-400" />
                     </button>
-                  ),
+                  ))
                 )}
               </CardContent>
             </Card>
