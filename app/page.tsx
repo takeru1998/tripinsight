@@ -67,6 +67,7 @@ type TripCheckState = {
   selectedTripId?: string | null;
   riskDetailTripId?: string | null;
   detailTripId?: string | null;
+  riskPlanTripId?: string | null;
 };
 
 type TripRecord = {
@@ -633,6 +634,8 @@ export default function Home() {
     mockTravel.id,
   );
   const [detailTripId, setDetailTripId] = useState<string | null>(mockTravel.id);
+  const [riskPlanTripId, setRiskPlanTripId] = useState<string | null>(null);
+  const [detailReturnTab, setDetailReturnTab] = useState('ホーム');
   const [tripFilter, setTripFilter] = useState<TripListFilter>('all');
   const [tripSort, setTripSort] = useState<TripListSort>('date');
   const [improved, setImproved] = useState(false);
@@ -662,6 +665,9 @@ export default function Home() {
       if ('detailTripId' in stored) {
         setDetailTripId(stored.detailTripId ?? null);
       }
+      if ('riskPlanTripId' in stored) {
+        setRiskPlanTripId(stored.riskPlanTripId ?? null);
+      }
       setSaveState('保存済みデータを読み込みました');
     } catch {
       setSaveState('保存データを読み込めませんでした');
@@ -679,6 +685,7 @@ export default function Home() {
       selectedTripId,
       riskDetailTripId,
       detailTripId,
+      riskPlanTripId,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(state));
   }, [
@@ -691,6 +698,7 @@ export default function Home() {
     selectedTripId,
     riskDetailTripId,
     detailTripId,
+    riskPlanTripId,
   ]);
 
   const hotelDiagnosis = useMemo(
@@ -757,6 +765,13 @@ export default function Home() {
           )
         : null,
     [detailTrip],
+  );
+  const detailAvoidancePlans = useMemo(
+    () =>
+      detailTrip && detailRiskDiagnosis
+        ? buildAvoidancePlans(detailTrip, detailRiskDiagnosis).slice(0, 3)
+        : [],
+    [detailTrip, detailRiskDiagnosis],
   );
   const topTravel = nearestTrip?.travel ?? travel;
   const topAccommodation = nearestTrip?.accommodation ?? accommodation;
@@ -856,6 +871,7 @@ export default function Home() {
     setSelectedTripId(mockTravel.id);
     setRiskDetailTripId(mockTravel.id);
     setDetailTripId(mockTravel.id);
+    setRiskPlanTripId(null);
     setImproved(false);
     setPreviousItinerary(null);
     setSaveState('モック旅行に戻しました');
@@ -872,6 +888,7 @@ export default function Home() {
     setSelectedTripId(null);
     setRiskDetailTripId(null);
     setDetailTripId(null);
+    setRiskPlanTripId(null);
     setPreviousItinerary(null);
     setImproved(false);
     setActiveTab('旅行登録');
@@ -920,7 +937,15 @@ export default function Home() {
     setSaveState(`${record.travel.name}を編集中`);
   }
 
-  function openRiskDetail(record: TripRecord) {
+  function scrollToRiskDetail() {
+    window.setTimeout(() => {
+      document
+        .getElementById('risk-detail-panel')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  }
+
+  function openRiskDetail(record: TripRecord, shouldScroll = true) {
     setTravel(record.travel);
     setAccommodation(record.accommodation);
     setItinerary(record.itinerary);
@@ -932,19 +957,26 @@ export default function Home() {
     setImproved(false);
     setActiveTab('リスク診断');
     setSaveState(`${record.travel.name}のリスク診断を表示中`);
+    if (shouldScroll) scrollToRiskDetail();
   }
 
-  function openTripDetail(record: TripRecord) {
+  function openTripDetail(record: TripRecord, returnTab = 'ホーム') {
     setTravel(record.travel);
     setAccommodation(record.accommodation);
     setItinerary(record.itinerary);
     setReview(record.review);
     setSelectedTripId(record.id);
     setDetailTripId(record.id);
+    setDetailReturnTab(returnTab);
     setPreviousItinerary(null);
     setImproved(false);
     setActiveTab('旅行詳細');
     setSaveState(`${record.travel.name}の詳細を表示中`);
+  }
+
+  function showRiskPlanInTripDetail(record: TripRecord) {
+    setRiskPlanTripId(record.id);
+    openTripDetail(record, 'リスク診断');
   }
 
   function applyImprovement() {
@@ -1278,6 +1310,13 @@ export default function Home() {
                         <span>{detailTrip.travel.name}の詳細</span>
                         <div className="flex flex-wrap gap-2">
                           <Button
+                            onClick={() => setActiveTab(detailReturnTab)}
+                            variant="outline"
+                          >
+                            <RotateCcw className="size-4" />
+                            元に戻す
+                          </Button>
+                          <Button
                             onClick={() => editTrip(detailTrip)}
                             variant="outline"
                           >
@@ -1424,6 +1463,30 @@ export default function Home() {
                           </CardContent>
                         </Card>
                       </div>
+
+                      {riskPlanTripId === detailTrip.id && (
+                        <Card className="rounded-lg border-emerald-200 bg-emerald-50 shadow-none">
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-base text-emerald-950">
+                              <Umbrella className="size-4" />
+                              リスク回避プラン
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {detailAvoidancePlans.map((plan, index) => (
+                              <div
+                                className="flex gap-3 rounded-lg bg-white/80 p-3 text-sm text-emerald-950"
+                                key={plan}
+                              >
+                                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-900 text-xs font-semibold text-white">
+                                  {index + 1}
+                                </span>
+                                <span>{plan}</span>
+                              </div>
+                            ))}
+                          </CardContent>
+                        </Card>
+                      )}
 
                       <div className="rounded-lg bg-emerald-50 p-4 text-sm leading-relaxed text-emerald-950">
                         <p className="font-medium">旅行メモ</p>
@@ -1994,7 +2057,7 @@ export default function Home() {
                             </div>
                             <Button
                               className="self-center"
-                              onClick={() => openRiskDetail(trip)}
+                              onClick={() => openRiskDetail(trip, true)}
                               variant={isOpen ? 'secondary' : 'outline'}
                             >
                               <ChevronRight className="size-4" />
@@ -2008,7 +2071,10 @@ export default function Home() {
                 </Card>
 
                 {riskDetailTrip && riskDetailDiagnosis && (
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+                  <div
+                    className="grid scroll-mt-24 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]"
+                    id="risk-detail-panel"
+                  >
                     <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                       <CardHeader>
                         <CardTitle className="flex flex-wrap items-center justify-between gap-3">
@@ -2078,7 +2144,7 @@ export default function Home() {
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                          {riskDetailPlans.map((plan, index) => (
+                          {riskDetailPlans.slice(0, 3).map((plan, index) => (
                             <div
                               className="flex gap-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-950"
                               key={plan}
@@ -2089,6 +2155,13 @@ export default function Home() {
                               <span>{plan}</span>
                             </div>
                           ))}
+                          <Button
+                            className="mt-2 w-full bg-emerald-900 hover:bg-emerald-800"
+                            onClick={() => showRiskPlanInTripDetail(riskDetailTrip)}
+                          >
+                            <Umbrella className="size-4" />
+                            リスク回避プランを表示
+                          </Button>
                         </CardContent>
                       </Card>
 
