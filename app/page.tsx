@@ -1543,8 +1543,8 @@ export default function Home() {
                       {selectedTripId ? '旅行の予定を編集' : '旅行の予定を登録'}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5 sm:col-span-2">
+                  <CardContent className="flex flex-wrap items-end gap-4">
+                    <div className="w-full space-y-1.5 sm:flex-[1_1_360px]">
                       <FieldLabel>旅行名</FieldLabel>
                       <Input
                         value={travel.name}
@@ -1553,7 +1553,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="w-[150px] space-y-1.5">
                       <FieldLabel>出発日</FieldLabel>
                       <Input
                         type="date"
@@ -1563,7 +1563,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="w-[150px] space-y-1.5">
                       <FieldLabel>帰宅日</FieldLabel>
                       <Input
                         type="date"
@@ -1573,7 +1573,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="w-full space-y-1.5 sm:w-56">
                       <FieldLabel>出発地</FieldLabel>
                       <Input
                         value={travel.origin}
@@ -1582,7 +1582,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="w-32 space-y-1.5">
                       <FieldLabel>移動手段</FieldLabel>
                       <SelectField
                         label="移動手段"
@@ -1596,7 +1596,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="w-32 space-y-1.5">
                       <FieldLabel>同行者</FieldLabel>
                       <SelectField
                         label="同行者"
@@ -1610,7 +1610,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="w-24 space-y-1.5">
                       <FieldLabel>人数</FieldLabel>
                       <Input
                         min="1"
@@ -1624,7 +1624,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="space-y-1.5">
+                    <div className="w-40 space-y-1.5">
                       <FieldLabel>旅行予算</FieldLabel>
                       <Input
                         type="number"
@@ -1637,7 +1637,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="space-y-1.5 sm:col-span-2">
+                    <div className="w-full space-y-1.5">
                       <FieldLabel>自由入力メモ</FieldLabel>
                       <Textarea
                         value={travel.memo}
@@ -1646,7 +1646,7 @@ export default function Home() {
                         }
                       />
                     </div>
-                    <div className="flex flex-wrap gap-2 sm:col-span-2">
+                    <div className="flex w-full flex-wrap gap-2">
                       <Button
                         className="bg-teal-800 hover:bg-teal-700"
                         onClick={saveCurrentTrip}
