@@ -11,6 +11,18 @@
 
 フロントエンドは現在のSites配信を維持し、HTTPSでAWS APIへ接続します。
 
+## 開発環境のデプロイ状況
+
+- CloudFormation stack: `tripcheck-dev`
+- Region: `ap-northeast-1`
+- API: `https://mnyheiadjf.execute-api.ap-northeast-1.amazonaws.com`
+- Cognito User Pool: `ap-northeast-1_y0S4oRa5x`
+- Cognito Client: `6bjh91hmqbsu7bcjfjk44b8v21`
+- DynamoDB table: `tripcheck-dev`
+- Bedrock model: `jp.anthropic.claude-sonnet-4-5-20250929-v1:0`
+
+`GET /health`は200、認証なしの`GET /trips`は401、BedrockのJP profileは実呼び出し確認済みです。
+
 ## API
 
 | Method | Path | 内容 |
@@ -50,4 +62,4 @@
 - DynamoDBとS3は削除時も保持される設定になっている。
 - 本番化前にAWS WAF、予算通知、CloudWatchアラーム、ログ保持期間を追加する。
 - BedrockのモデルIDはデプロイ時パラメータで変更できる。
-- 初期値はClaude Sonnet 4.5のGlobal inference profile。データ処理地域を限定する場合は、利用地域に対応するGeoまたはIn-RegionのモデルIDへ変更する。
+- 初期値はClaude Sonnet 4.5のJP inference profile。東京リージョンから呼び出し、処理先を東京・大阪に限定する。

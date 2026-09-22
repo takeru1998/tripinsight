@@ -6,11 +6,16 @@ import {
   CalendarDays,
   Check,
   ChevronRight,
+  CloudDownload,
   CloudRain,
+  CloudUpload,
   ClipboardList,
   CreditCard,
   Eye,
   ListFilter,
+  LogIn,
+  LogOut,
+  MailCheck,
   MapPin,
   Pencil,
   Plus,
@@ -25,6 +30,7 @@ import {
   Trash2,
   Train,
   Umbrella,
+  UserPlus,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -47,6 +53,16 @@ import {
   mockTravel,
 } from '@/data/mockTrip';
 import { mockAiProvider } from '@/services/ai/mockProvider';
+import { createTripCheckApi } from '@/services/api/tripcheckApi';
+import {
+  confirmSignUp,
+  getAccessToken,
+  getCurrentUserEmail,
+  signIn,
+  signOut,
+  signUp,
+} from '@/services/auth/cognitoAuth';
+import { awsConfig } from '@/services/aws/config';
 import type {
   Accommodation,
   ItineraryItem,
@@ -80,6 +96,7 @@ type TripRecord = {
 
 type TripListFilter = 'all' | 'attention' | 'missing';
 type TripListSort = 'date' | 'risk';
+type AuthMode = 'signin' | 'signup' | 'confirm';
 
 const storageKey = 'tripcheck-mvp-state-v1';
 
@@ -655,6 +672,14 @@ function buildRiskChecks(record: TripRecord) {
   ];
 }
 
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error && 'message' in error) {
+    return String(error.message);
+  }
+  return '処理に失敗しました。時間をおいてもう一度お試しください。';
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState('ホーム');
   const [preference, setPreference] =
@@ -683,6 +708,17 @@ export default function Home() {
   const [selectedImprovementId, setSelectedImprovementId] =
     useState<ItineraryImprovementId | null>(null);
   const [saveState, setSaveState] = useState('端末内に自動保存');
+  const [authMode, setAuthMode] = useState<AuthMode>('signin');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authCode, setAuthCode] = useState('');
+  const [authUserEmail, setAuthUserEmail] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMessage, setAuthMessage] = useState('');
+  const cloudApi = useMemo(
+    () => createTripCheckApi({ baseUrl: awsConfig.apiUrl, getAccessToken }),
+    [],
+  );
 
   useEffect(() => {
     const raw = window.localStorage.getItem(storageKey);
@@ -712,6 +748,10 @@ export default function Home() {
     } catch {
       setSaveState('保存データを読み込めませんでした');
     }
+  }, []);
+
+  useEffect(() => {
+    getCurrentUserEmail().then((email) => setAuthUserEmail(email ?? null));
   }, []);
 
   useEffect(() => {
@@ -864,6 +904,72 @@ export default function Home() {
   const remainingDays = daysUntil(topTravel.startDate);
   function updatePreference(key: PreferenceKey, value: number) {
     setPreference((current) => ({ ...current, [key]: value }));
+  }
+
+  async function submitAuth() {
+    setAuthBusy(true);
+    setAuthMessage('');
+    try {
+      if (authMode === 'signup') {
+        await signUp(authEmail.trim(), authPassword);
+        setAuthMode('confirm');
+        setAuthMessage('確認コードをメールへ送信しました');
+      } else if (authMode === 'confirm') {
+        await confirmSignUp(authEmail.trim(), authCode.trim());
+        setAuthMode('signin');
+        setAuthCode('');
+        setAuthMessage('メール確認が完了しました。ログインしてください');
+      } else {
+        await signIn(authEmail.trim(), authPassword);
+        setAuthUserEmail(authEmail.trim());
+        setAuthPassword('');
+        setAuthMessage('ログインしました');
+      }
+    } catch (error) {
+      setAuthMessage(errorMessage(error));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  function logoutFromAws() {
+    signOut();
+    setAuthUserEmail(null);
+    setAuthMessage('ログアウトしました');
+  }
+
+  async function saveAllToAws() {
+    setAuthBusy(true);
+    setAuthMessage('');
+    try {
+      await cloudApi.saveProfile(preference);
+      await Promise.all(trips.map((trip) => cloudApi.saveTrip(trip)));
+      setAuthMessage(`${trips.length}件の旅行をAWSへ保存しました`);
+    } catch (error) {
+      setAuthMessage(errorMessage(error));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function loadAllFromAws() {
+    setAuthBusy(true);
+    setAuthMessage('');
+    try {
+      const [storedPreference, storedTrips] = await Promise.all([
+        cloudApi.getProfile(),
+        cloudApi.listTrips(),
+      ]);
+      setPreference(storedPreference);
+      setTrips(storedTrips.items);
+      const firstTrip = storedTrips.items[0];
+      if (firstTrip) editTrip(firstTrip);
+      setAuthMessage(`${storedTrips.items.length}件の旅行をAWSから読み込みました`);
+    } catch (error) {
+      setAuthMessage(errorMessage(error));
+    } finally {
+      setAuthBusy(false);
+    }
   }
 
   function updateItinerary(id: string, patch: Partial<ItineraryItem>) {
@@ -1523,39 +1629,175 @@ export default function Home() {
               )}
 
             {activeTab === 'プロフィール' && (
-              <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <SlidersHorizontal className="size-5 text-teal-700" />
-                    旅行の好み
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2">
-                  {(Object.keys(preferenceLabels) as PreferenceKey[]).map(
-                    (key) => (
-                      <div key={key} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <FieldLabel>{preferenceLabels[key]}</FieldLabel>
-                          <span className="text-sm font-semibold text-emerald-800">
-                            {preference[key]}
-                          </span>
+              <div className="space-y-4">
+                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ShieldCheck className="size-5 text-teal-700" />
+                      アカウント
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {authUserEmail ? (
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-emerald-50 p-3">
+                          <div>
+                            <p className="text-xs text-emerald-700">ログイン中</p>
+                            <p className="font-medium text-emerald-950">
+                              {authUserEmail}
+                            </p>
+                          </div>
+                          <Button onClick={logoutFromAws} variant="outline">
+                            <LogOut className="size-4" />
+                            ログアウト
+                          </Button>
                         </div>
-                        <input
-                          aria-label={preferenceLabels[key]}
-                          className="w-full accent-emerald-800"
-                          max="5"
-                          min="1"
-                          onChange={(event) =>
-                            updatePreference(key, Number(event.target.value))
-                          }
-                          type="range"
-                          value={preference[key]}
-                        />
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            className="bg-emerald-900 hover:bg-emerald-800"
+                            disabled={authBusy}
+                            onClick={saveAllToAws}
+                          >
+                            <CloudUpload className="size-4" />
+                            AWSへ保存
+                          </Button>
+                          <Button
+                            disabled={authBusy}
+                            onClick={loadAllFromAws}
+                            variant="outline"
+                          >
+                            <CloudDownload className="size-4" />
+                            AWSから読込
+                          </Button>
+                        </div>
                       </div>
-                    ),
-                  )}
-                </CardContent>
-              </Card>
+                    ) : (
+                      <div className="max-w-md space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            onClick={() => {
+                              setAuthMode('signin');
+                              setAuthMessage('');
+                            }}
+                            variant={authMode === 'signin' ? 'default' : 'outline'}
+                          >
+                            <LogIn className="size-4" />
+                            ログイン
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              setAuthMode('signup');
+                              setAuthMessage('');
+                            }}
+                            variant={authMode === 'signup' ? 'default' : 'outline'}
+                          >
+                            <UserPlus className="size-4" />
+                            新規登録
+                          </Button>
+                        </div>
+                        <div className="space-y-1.5">
+                          <FieldLabel>メールアドレス</FieldLabel>
+                          <Input
+                            autoComplete="email"
+                            onChange={(event) => setAuthEmail(event.target.value)}
+                            type="email"
+                            value={authEmail}
+                          />
+                        </div>
+                        {authMode === 'confirm' ? (
+                          <div className="space-y-1.5">
+                            <FieldLabel>確認コード</FieldLabel>
+                            <Input
+                              autoComplete="one-time-code"
+                              inputMode="numeric"
+                              onChange={(event) => setAuthCode(event.target.value)}
+                              value={authCode}
+                            />
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <FieldLabel>パスワード</FieldLabel>
+                            <Input
+                              autoComplete={
+                                authMode === 'signup'
+                                  ? 'new-password'
+                                  : 'current-password'
+                              }
+                              minLength={10}
+                              onChange={(event) => setAuthPassword(event.target.value)}
+                              type="password"
+                              value={authPassword}
+                            />
+                          </div>
+                        )}
+                        <Button
+                          className="bg-emerald-900 hover:bg-emerald-800"
+                          disabled={
+                            authBusy ||
+                            !authEmail.trim() ||
+                            (authMode === 'confirm'
+                              ? !authCode.trim()
+                              : authPassword.length < 10)
+                          }
+                          onClick={submitAuth}
+                        >
+                          {authMode === 'confirm' ? (
+                            <MailCheck className="size-4" />
+                          ) : authMode === 'signup' ? (
+                            <UserPlus className="size-4" />
+                          ) : (
+                            <LogIn className="size-4" />
+                          )}
+                          {authMode === 'confirm'
+                            ? 'コードを確認'
+                            : authMode === 'signup'
+                              ? 'アカウントを作成'
+                              : 'ログイン'}
+                        </Button>
+                      </div>
+                    )}
+                    {authMessage && (
+                      <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                        {authMessage}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <SlidersHorizontal className="size-5 text-teal-700" />
+                      旅行の好み
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 sm:grid-cols-2">
+                    {(Object.keys(preferenceLabels) as PreferenceKey[]).map(
+                      (key) => (
+                        <div key={key} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <FieldLabel>{preferenceLabels[key]}</FieldLabel>
+                            <span className="text-sm font-semibold text-emerald-800">
+                              {preference[key]}
+                            </span>
+                          </div>
+                          <input
+                            aria-label={preferenceLabels[key]}
+                            className="w-full accent-emerald-800"
+                            max="5"
+                            min="1"
+                            onChange={(event) =>
+                              updatePreference(key, Number(event.target.value))
+                            }
+                            type="range"
+                            value={preference[key]}
+                          />
+                        </div>
+                      ),
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {activeTab === '旅行登録' && (

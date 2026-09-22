@@ -12,7 +12,7 @@ Parameters:
     Default: https://tripcheck-risk-ai.cl-sk-chucky.chatgpt.site
   BedrockModelId:
     Type: String
-    Default: global.anthropic.claude-sonnet-4-5-20250929-v1:0
+    Default: jp.anthropic.claude-sonnet-4-5-20250929-v1:0
 
 Resources:
   UserPool:
@@ -126,28 +126,66 @@ Resources:
 
   HealthRoute:
     Type: AWS::ApiGatewayV2::Route
-    Properties: { ApiId: !Ref Api, RouteKey: 'GET /health', Target: !Sub integrations/${ApiIntegration} }
+    Properties:
+      ApiId: !Ref Api
+      RouteKey: 'GET /health'
+      Target: !Sub integrations/${ApiIntegration}
   ProfileGetRoute:
     Type: AWS::ApiGatewayV2::Route
-    Properties: { ApiId: !Ref Api, RouteKey: 'GET /profile', AuthorizationType: JWT, AuthorizerId: !Ref ApiAuthorizer, Target: !Sub integrations/${ApiIntegration} }
+    Properties:
+      ApiId: !Ref Api
+      RouteKey: 'GET /profile'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
   ProfilePutRoute:
     Type: AWS::ApiGatewayV2::Route
-    Properties: { ApiId: !Ref Api, RouteKey: 'PUT /profile', AuthorizationType: JWT, AuthorizerId: !Ref ApiAuthorizer, Target: !Sub integrations/${ApiIntegration} }
+    Properties:
+      ApiId: !Ref Api
+      RouteKey: 'PUT /profile'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
   TripsGetRoute:
     Type: AWS::ApiGatewayV2::Route
-    Properties: { ApiId: !Ref Api, RouteKey: 'GET /trips', AuthorizationType: JWT, AuthorizerId: !Ref ApiAuthorizer, Target: !Sub integrations/${ApiIntegration} }
+    Properties:
+      ApiId: !Ref Api
+      RouteKey: 'GET /trips'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
   TripGetRoute:
     Type: AWS::ApiGatewayV2::Route
-    Properties: { ApiId: !Ref Api, RouteKey: 'GET /trips/{tripId}', AuthorizationType: JWT, AuthorizerId: !Ref ApiAuthorizer, Target: !Sub integrations/${ApiIntegration} }
+    Properties:
+      ApiId: !Ref Api
+      RouteKey: 'GET /trips/{tripId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
   TripPutRoute:
     Type: AWS::ApiGatewayV2::Route
-    Properties: { ApiId: !Ref Api, RouteKey: 'PUT /trips/{tripId}', AuthorizationType: JWT, AuthorizerId: !Ref ApiAuthorizer, Target: !Sub integrations/${ApiIntegration} }
+    Properties:
+      ApiId: !Ref Api
+      RouteKey: 'PUT /trips/{tripId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
   TripDeleteRoute:
     Type: AWS::ApiGatewayV2::Route
-    Properties: { ApiId: !Ref Api, RouteKey: 'DELETE /trips/{tripId}', AuthorizationType: JWT, AuthorizerId: !Ref ApiAuthorizer, Target: !Sub integrations/${ApiIntegration} }
+    Properties:
+      ApiId: !Ref Api
+      RouteKey: 'DELETE /trips/{tripId}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
   DiagnosisPostRoute:
     Type: AWS::ApiGatewayV2::Route
-    Properties: { ApiId: !Ref Api, RouteKey: 'POST /diagnoses', AuthorizationType: JWT, AuthorizerId: !Ref ApiAuthorizer, Target: !Sub integrations/${ApiIntegration} }
+    Properties:
+      ApiId: !Ref Api
+      RouteKey: 'POST /diagnoses'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref ApiAuthorizer
+      Target: !Sub integrations/${ApiIntegration}
 
   ApiPermission:
     Type: AWS::Lambda::Permission
