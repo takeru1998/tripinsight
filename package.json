@@ -8,12 +8,18 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
+    "mobile:build": "vite build --config vite.mobile.config.ts",
+    "ios:add": "npm run mobile:build && npx cap add ios",
+    "ios:copy": "npm run mobile:build && npx cap copy ios",
+    "ios:sync": "npm run mobile:build && npx cap sync ios",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
     "format": "oxfmt"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
+    "@capacitor/core": "^8.3.3",
+    "@capacitor/ios": "^8.3.3",
     "@shadcn/react": "0.3.0",
     "amazon-cognito-identity-js": "^6.3.20",
     "class-variance-authority": "0.7.1",
@@ -35,6 +41,7 @@
     "vinext": "1.0.0-beta.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.3",
     "@cloudflare/vite-plugin": "1.37.1",
     "@cloudflare/workers-types": "4.20260515.1",
     "@openai/sites-vite-plugin": "0.2.0",

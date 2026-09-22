@@ -7,9 +7,9 @@ Parameters:
     Type: String
     Default: dev
     AllowedValues: [dev, prod]
-  AllowedOrigin:
-    Type: String
-    Default: https://tripcheck-risk-ai.cl-sk-chucky.chatgpt.site
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Default: https://tripcheck-risk-ai.cl-sk-chucky.chatgpt.site,https://localhost
   BedrockModelId:
     Type: String
     Default: jp.anthropic.claude-sonnet-4-5-20250929-v1:0
@@ -90,7 +90,7 @@ Resources:
       Name: !Sub tripcheck-${Environment}
       ProtocolType: HTTP
       CorsConfiguration:
-        AllowOrigins: [!Ref AllowedOrigin]
+        AllowOrigins: !Ref AllowedOrigins
         AllowHeaders: [authorization, content-type]
         AllowMethods: [GET, PUT, POST, DELETE, OPTIONS]
         MaxAge: 86400

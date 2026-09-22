@@ -34,6 +34,8 @@ yarn-error.log*
 .vercel
 next-env.d.ts
 /dist/
+/dist-mobile/
+/.aws-sam/
 /infrastructure/dist/
 /infrastructure/node_modules/
 /.wrangler/

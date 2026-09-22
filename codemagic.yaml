@@ -1,0 +1,51 @@
+workflows:
+  ios-testflight:
+    name: TripCheck iOS TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      xcode: latest
+      groups:
+        - app_store_connect
+      vars:
+        BUNDLE_ID: "com.tripcheck.app"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
+        XCODE_SCHEME: "App"
+        APP_STORE_CONNECT_ISSUER_ID: "45560130-2c3d-4578-99f0-41501891de30"
+        APP_STORE_CONNECT_KEY_IDENTIFIER: "53C8Y9252U"
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+      - name: Build iPhone app
+        script: npm run mobile:build
+      - name: Copy app into iOS project
+        script: npx cap copy ios
+      - name: Increment build number
+        script: |
+          NEXT_BUILD_NUMBER="${CM_BUILD_NUMBER:-$(date +%Y%m%d%H%M)}"
+          NEXT_BUILD_NUMBER=$(printf '%s' "$NEXT_BUILD_NUMBER" | tr -cd '0-9')
+          if [ -z "$NEXT_BUILD_NUMBER" ]; then
+            NEXT_BUILD_NUMBER=$(date +%Y%m%d%H%M)
+          fi
+          cd "$CM_BUILD_DIR/ios/App"
+          xcrun agvtool new-version -all "$NEXT_BUILD_NUMBER"
+          echo "Using iOS build number: $NEXT_BUILD_NUMBER"
+      - name: Set up keychain
+        script: keychain initialize
+      - name: Fetch App Store signing files
+        script: app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+      - name: Add signing certificates to keychain
+        script: keychain add-certificates
+      - name: Apply provisioning profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: xcode-project build-ipa --project "$XCODE_PROJECT" --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /Users/builder/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      app_store_connect:
+        submit_to_testflight: true
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
