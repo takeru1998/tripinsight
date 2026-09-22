@@ -50,6 +50,7 @@
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  -webkit-text-size-adjust: 100%;
 }
 
 :root {
@@ -138,6 +139,15 @@ body {
   .trip-app {
     background:
       linear-gradient(180deg, rgb(238 244 241) 0%, rgb(248 250 247) 42%, rgb(239 246 243) 100%);
+    overscroll-behavior-y: contain;
+  }
+
+  .trip-app button,
+  .trip-app input,
+  .trip-app select,
+  .trip-app textarea {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .trip-app [data-slot='card'] {
@@ -165,5 +175,19 @@ body {
 
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  @media (max-width: 639px) {
+    .trip-app [data-slot='button'],
+    .trip-app input:not([type='radio']):not([type='checkbox']):not([type='range']),
+    .trip-app select {
+      min-height: 44px;
+    }
+
+    .trip-app input,
+    .trip-app select,
+    .trip-app textarea {
+      font-size: 16px;
+    }
   }
 }

@@ -12,6 +12,7 @@ import {
   ClipboardList,
   CreditCard,
   Eye,
+  House,
   ListFilter,
   LogIn,
   LogOut,
@@ -30,6 +31,7 @@ import {
   Trash2,
   Train,
   Umbrella,
+  UserRound,
   UserPlus,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -216,6 +218,21 @@ const tabs = [
   'プラン',
   'プロフィール',
 ];
+
+const tabIcons: Record<string, React.ElementType> = {
+  ホーム: House,
+  旅行登録: Plus,
+  宿診断: Bed,
+  リスク診断: ShieldAlert,
+  カルテ: ClipboardList,
+  プラン: CreditCard,
+  プロフィール: UserRound,
+};
+
+const mobileTabLabels: Record<string, string> = {
+  旅行登録: '登録',
+  リスク診断: 'リスク',
+};
 
 const timeOptions = Array.from({ length: 24 * 12 }, (_, index) => {
   const hour = Math.floor(index / 12);
@@ -1142,8 +1159,8 @@ export default function Home() {
   }
 
   return (
-    <main className="trip-app min-h-screen bg-[var(--app-bg)] text-slate-900">
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-4 sm:px-6 lg:px-8">
+    <main className="trip-app min-h-dvh bg-[var(--app-bg)] text-slate-900">
+      <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-4 pt-[env(safe-area-inset-top)] sm:px-6 sm:pt-4 lg:px-8">
         <header className="sticky top-0 z-20 -mx-4 border-b border-white/70 bg-white/75 px-4 py-3 shadow-sm backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1158,11 +1175,12 @@ export default function Home() {
               </div>
             </div>
             <Button
-              className="bg-emerald-900 hover:bg-emerald-800"
+              aria-label="新しい旅行を診断"
+              className="size-11 bg-emerald-900 p-0 hover:bg-emerald-800 sm:h-8 sm:w-auto sm:px-2.5"
               onClick={startNewTrip}
             >
               <Plus className="size-4" />
-              新しい旅行を診断
+              <span className="hidden sm:inline">新しい旅行を診断</span>
             </Button>
           </div>
           <p className="mt-2 flex items-center gap-1 text-xs text-slate-500">
@@ -1250,21 +1268,33 @@ export default function Home() {
           </Card>
         </section>
 
-        <nav className="no-scrollbar fixed inset-x-0 bottom-0 z-30 flex gap-1 overflow-x-auto border-t border-emerald-950/10 bg-white/95 px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:gap-2 sm:rounded-lg sm:border sm:border-white/70 sm:bg-white/70 sm:px-4 sm:pb-2 sm:shadow-sm">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition sm:text-sm ${
-                activeTab === tab
-                  ? 'bg-emerald-900 text-white'
-                  : 'text-slate-600 hover:bg-emerald-50'
-              }`}
-              onClick={() => setActiveTab(tab)}
-              type="button"
-            >
-              {tab}
-            </button>
-          ))}
+        <nav
+          aria-label="メインメニュー"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-emerald-950/10 bg-white/95 px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-2 sm:rounded-lg sm:border sm:border-white/70 sm:bg-white/70 sm:px-4 sm:py-2 sm:shadow-sm"
+        >
+          {tabs.map((tab) => {
+            const TabIcon = tabIcons[tab];
+            return (
+              <button
+                aria-current={activeTab === tab ? 'page' : undefined}
+                aria-label={tab}
+                key={tab}
+                className={`flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 py-1 text-[9px] font-medium transition sm:h-8 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm ${
+                  activeTab === tab
+                    ? 'bg-emerald-900 text-white'
+                    : 'text-slate-600 hover:bg-emerald-50'
+                }`}
+                onClick={() => setActiveTab(tab)}
+                type="button"
+              >
+                <TabIcon className="size-4" />
+                <span className="max-w-full truncate sm:hidden">
+                  {mobileTabLabels[tab] || tab}
+                </span>
+                <span className="hidden sm:inline">{tab}</span>
+              </button>
+            );
+          })}
         </nav>
 
         <section className="grid flex-1 gap-4 pb-28 pt-5 sm:pb-5 lg:grid-cols-[minmax(0,1fr)_340px]">

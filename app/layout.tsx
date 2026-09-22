@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -16,6 +16,22 @@ export const metadata: Metadata = {
   title: 'TripCheck | 旅行リスクAI分析',
   description:
     '旅行前に宿・旅程・当日のトラブルを診断し、後悔ポイントと改善案を提示するAIアプリMVPです。',
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TripCheck',
+  },
+  icons: {
+    icon: '/favicon.svg',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#064e3b',
 };
 
 export default function RootLayout({
