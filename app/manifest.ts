@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'TripCheck - 旅行リスクAI分析',
-    short_name: 'TripCheck',
+    name: 'TripInsight - 旅行リスクAI分析',
+    short_name: 'TripInsight',
     description: '旅行前に宿・旅程・当日のトラブルを診断するAIアプリ',
     start_url: '/',
     display: 'standalone',

@@ -13,14 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'TripCheck | 旅行リスクAI分析',
+  title: 'TripInsight | 旅行リスクAI分析',
   description:
     '旅行前に宿・旅程・当日のトラブルを診断し、後悔ポイントと改善案を提示するAIアプリMVPです。',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'TripCheck',
+    title: 'TripInsight',
   },
   icons: {
     icon: '/favicon.svg',

@@ -1168,7 +1168,7 @@ export default function Home() {
                 <ShieldCheck className="size-5" />
               </div>
               <div>
-                <p className="text-lg font-semibold leading-tight">TripCheck</p>
+                <p className="text-lg font-semibold leading-tight">TripInsight</p>
                 <p className="text-xs text-slate-500">
                   旅行の失敗を事前に見つけるAI
                 </p>

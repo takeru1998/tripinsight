@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.tripcheck.app',
-  appName: 'TripCheck',
+  appName: 'TripInsight',
   webDir: 'dist-mobile',
   server: {
     hostname: 'localhost',

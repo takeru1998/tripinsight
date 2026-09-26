@@ -1,9 +1,9 @@
-# TripCheck TestFlight 外部テスト
+# TripInsight TestFlight 外部テスト
 
 ## 準備済み
 
 - iOS Bundle ID: `com.tripcheck.app`
-- 表示名: `TripCheck`
+- 表示名: `TripInsight`
 - バージョン: `1.0`
 - 対象: iPhone / iOS 15以上 / 縦画面
 - Capacitor iOSプロジェクト: `ios/App/App.xcodeproj`
@@ -15,11 +15,11 @@
 
 1. Apple DeveloperのCertificates, Identifiers & ProfilesでApp ID `com.tripcheck.app` を登録する。
 2. App Store Connectの「マイApp」で新規Appを作成する。
-3. 名前を `TripCheck`、Bundle IDを `com.tripcheck.app`、SKUを `tripcheck-ios` にする。
-4. GitHubにTripCheck用リポジトリを作成し、このプロジェクトをpushする。
+3. 名前を `TripInsight`、Bundle IDを `com.tripcheck.app`、SKUを `tripinsight-ios` にする。
+4. GitHubの `takeru1998/tripinsight` にこのプロジェクトをpushする。
 5. CodemagicでGitHubリポジトリを追加する。
 6. SwingVisionで使用中の環境変数グループ `app_store_connect` を同じチーム内で利用できることを確認する。
-7. Codemagicの `TripCheck iOS TestFlight` を実行する。
+7. Codemagicの `TripInsight iOS TestFlight` を実行する。
 
 ## 外部テスト開始
 
