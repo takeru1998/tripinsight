@@ -12,7 +12,7 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         APP_STORE_CONNECT_ISSUER_ID: "45560130-2c3d-4578-99f0-41501891de30"
-        APP_STORE_CONNECT_KEY_IDENTIFIER: "53C8Y9252U"
+        APP_STORE_CONNECT_KEY_IDENTIFIER: "FN9KY8Z892"
     scripts:
       - name: Install dependencies
         script: npm ci
