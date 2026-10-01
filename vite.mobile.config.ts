@@ -13,6 +13,7 @@ export default defineConfig({
     },
   },
   define: {
+    global: 'globalThis',
     'process.env.NEXT_PUBLIC_TRIPCHECK_API_URL': JSON.stringify(
       'https://mnyheiadjf.execute-api.ap-northeast-1.amazonaws.com',
     ),
