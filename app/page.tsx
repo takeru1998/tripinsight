@@ -1137,7 +1137,7 @@ export default function Home() {
                 aria-controls="account-menu"
                 aria-expanded={isHeaderMenuOpen}
                 aria-label="メニュー"
-                className="grid size-10 shrink-0 place-items-center rounded-lg border border-emerald-950/10 bg-white text-emerald-950 shadow-sm transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                className="grid size-10 shrink-0 place-items-center rounded-lg border border-emerald-800 bg-emerald-900 text-white shadow-sm shadow-emerald-950/20 transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
                 onClick={() => setIsHeaderMenuOpen((open) => !open)}
                 type="button"
               >
@@ -1172,11 +1172,14 @@ export default function Home() {
                   ))}
                 </div>
               )}
-              <div className="grid size-10 place-items-center rounded-lg bg-gradient-to-br from-emerald-900 to-teal-700 text-white shadow-sm shadow-emerald-900/25">
-                <ShieldCheck className="size-5" />
-              </div>
               <div className="min-w-0">
-                <p className="text-lg font-semibold leading-tight">TripInsight</p>
+                <p
+                  aria-label="TripInsight"
+                  className="text-xl font-bold leading-none text-emerald-950"
+                >
+                  <span>Trip</span>
+                  <span className="text-teal-600">Insight</span>
+                </p>
                 <p className="hidden text-xs text-slate-500 sm:block">
                   旅行の失敗を事前に見つけるAI
                 </p>
