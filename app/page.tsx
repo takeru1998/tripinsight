@@ -469,21 +469,25 @@ function ScoreCard({
   caption: string;
 }) {
   return (
-    <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
-      <CardContent className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-            <Icon className="size-4 text-teal-700" />
-            {title}
+    <div className="trip-score-tile min-w-0 rounded-lg p-3 sm:p-4">
+      <div className="space-y-2.5">
+        <div className="flex items-start justify-between gap-1.5 sm:gap-3">
+          <div className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-slate-600 sm:text-sm">
+            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-teal-50 text-teal-700 sm:size-8">
+              <Icon className="size-3.5 sm:size-4" />
+            </span>
+            <span className="truncate">{title}</span>
           </div>
-          <span className={`text-2xl font-semibold ${scoreTone(value)}`}>
+          <span className={`text-xl font-semibold sm:text-2xl ${scoreTone(value)}`}>
             {value}
           </span>
         </div>
-        <Progress value={value} className="h-2" />
-        <p className="text-xs leading-relaxed text-slate-500">{caption}</p>
-      </CardContent>
-    </Card>
+        <Progress value={value} className="h-1.5" />
+        <p className="hidden text-xs leading-relaxed text-slate-500 sm:block">
+          {caption}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -1130,14 +1134,14 @@ export default function Home() {
   return (
     <main className="trip-app min-h-dvh bg-[var(--app-bg)] text-slate-900">
       <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-4 pt-[env(safe-area-inset-top)] sm:px-6 sm:pt-4 lg:px-8">
-        <header className="sticky top-0 z-20 -mx-4 border-b border-white/70 bg-white/75 px-4 py-3 shadow-sm backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <header className="sticky top-0 z-20 -mx-4 border-b border-emerald-950/8 bg-[#fbfdfc]/90 px-4 py-3 shadow-[0_8px_30px_rgb(15_23_42/5%)] backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex items-center justify-between gap-3">
             <div className="relative flex min-w-0 items-center gap-2 sm:gap-3">
               <button
                 aria-controls="account-menu"
                 aria-expanded={isHeaderMenuOpen}
                 aria-label="メニュー"
-                className="grid size-10 shrink-0 place-items-center rounded-lg border border-emerald-800 bg-emerald-900 text-white shadow-sm shadow-emerald-950/20 transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+                className="grid size-10 shrink-0 place-items-center rounded-lg border border-emerald-700 bg-[#0f5a49] text-white shadow-md shadow-emerald-950/15 transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
                 onClick={() => setIsHeaderMenuOpen((open) => !open)}
                 type="button"
               >
@@ -1175,56 +1179,56 @@ export default function Home() {
               <div className="min-w-0">
                 <p
                   aria-label="TripInsight"
-                  className="text-xl font-bold leading-none text-emerald-950"
+                  className="brand-wordmark text-[1.45rem] leading-none text-[#123f36] sm:text-[1.6rem]"
                 >
                   <span>Trip</span>
-                  <span className="text-teal-600">Insight</span>
+                  <span className="text-[#15937c]">Insight</span>
                 </p>
-                <p className="hidden text-xs text-slate-500 sm:block">
+                <p className="hidden text-[11px] font-medium text-slate-500 sm:block">
                   旅行の失敗を事前に見つけるAI
                 </p>
               </div>
             </div>
             <Button
               aria-label="新しい旅行を診断"
-              className="size-11 bg-emerald-900 p-0 hover:bg-emerald-800 sm:h-8 sm:w-auto sm:px-2.5"
+              className="size-10 rounded-lg bg-[#123f36] p-0 shadow-md shadow-emerald-950/15 hover:bg-[#0f5a49] sm:h-9 sm:w-auto sm:px-3"
               onClick={startNewTrip}
             >
               <Plus className="size-4" />
               <span className="hidden sm:inline">新しい旅行を診断</span>
             </Button>
           </div>
-          <p className="mt-2 flex items-center gap-1 text-xs text-slate-500">
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
             <Save className="size-3.5" />
             {saveState}
           </p>
         </header>
 
         {activeTab === 'ホーム' && (
-          <section className="grid gap-4 py-5 lg:grid-cols-[1.1fr_0.9fr]">
-          <Card className="rounded-lg border-white/70 bg-[linear-gradient(135deg,#ffffff_0%,#f2faf6_54%,#e7f3f1_100%)] shadow-xl shadow-emerald-950/8">
+          <section className="grid gap-4 py-5 lg:grid-cols-[1.16fr_0.84fr]">
+          <Card className="trip-hero-card overflow-hidden rounded-lg border-0 text-white">
             <CardContent className="space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
                   {remainingDays === null ? (
-                    <Badge className="w-fit bg-slate-100 text-slate-700 ring-1 ring-slate-300">
+                    <Badge className="w-fit bg-white/12 text-emerald-50 ring-1 ring-white/20">
                       新規旅行を作成中
                     </Badge>
                   ) : (
-                    <Badge className="w-fit bg-teal-50 text-teal-800 ring-1 ring-teal-700/15">
+                    <Badge className="w-fit bg-[#c9f2e5] text-[#123f36] ring-1 ring-white/20">
                       次の旅行まであと{remainingDays}日
                     </Badge>
                   )}
                   <div>
-                    <h1 className="text-2xl font-semibold leading-tight sm:text-3xl">
+                    <h1 className="text-2xl font-semibold leading-tight text-white sm:text-3xl">
                       {topTravel.name || '予定された旅行'}
                     </h1>
-                    <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                    <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-emerald-100/80">
                       <MapPin className="size-4" />
                       {topTravel.origin || '出発地未設定'}発 /{' '}
                       {topTravel.companion} / {topTravel.people}名
                     </p>
-                    <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                    <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-emerald-100/80">
                       <CalendarDays className="size-4" />
                       {topTravel.startDate || '日程未設定'} -{' '}
                       {topTravel.endDate || '日程未設定'} /{' '}
@@ -1234,7 +1238,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <ScoreCard
                   title="宿相性"
                   value={topHotelDiagnosis.score}
@@ -1257,7 +1261,7 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-lg border-amber-200/80 bg-[linear-gradient(135deg,#fff8eb_0%,#fffbf2_100%)] shadow-xl shadow-amber-900/8">
+          <Card className="rounded-lg border-amber-200/70 bg-[#fffaf0] shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-amber-950">
                 <AlertTriangle className="size-5" />
@@ -1283,7 +1287,7 @@ export default function Home() {
 
         <nav
           aria-label="メインメニュー"
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-emerald-950/10 bg-white/95 px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-2 sm:rounded-lg sm:border sm:border-white/70 sm:bg-white/70 sm:px-4 sm:py-2 sm:shadow-sm"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-emerald-950/10 bg-[#fbfdfc]/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-12px_34px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-1 sm:rounded-lg sm:border sm:border-emerald-950/8 sm:bg-white/80 sm:px-2 sm:py-2 sm:shadow-sm"
         >
           {tabs.map((tab) => {
             const TabIcon = tabIcons[tab];
@@ -1292,10 +1296,10 @@ export default function Home() {
                 aria-current={activeTab === tab ? 'page' : undefined}
                 aria-label={tab}
                 key={tab}
-                className={`flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 py-1 text-[9px] font-medium transition sm:h-8 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm ${
+                className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 text-[10px] font-medium transition sm:h-9 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm ${
                   activeTab === tab
-                    ? 'bg-emerald-900 text-white'
-                    : 'text-slate-600 hover:bg-emerald-50'
+                    ? 'bg-[#123f36] text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-900'
                 }`}
                 onClick={() => {
                   setActiveTab(tab);

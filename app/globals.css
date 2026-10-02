@@ -50,11 +50,12 @@
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  background: #f5f7f5;
   -webkit-text-size-adjust: 100%;
 }
 
 :root {
-  --app-bg: #eef4f1;
+  --app-bg: #f5f7f5;
   --background: oklch(0.985 0.012 94);
   --foreground: oklch(0.19 0.035 174);
   --card: oklch(1 0 0);
@@ -138,8 +139,14 @@ body {
 @layer utilities {
   .trip-app {
     background:
-      linear-gradient(180deg, rgb(238 244 241) 0%, rgb(248 250 247) 42%, rgb(239 246 243) 100%);
+      linear-gradient(180deg, #f7faf8 0%, #f3f6f4 48%, #faf8f4 100%);
     overscroll-behavior-y: contain;
+  }
+
+  .brand-wordmark {
+    font-family: var(--font-brand), Georgia, serif;
+    font-weight: 700;
+    letter-spacing: 0;
   }
 
   .trip-app button,
@@ -151,9 +158,15 @@ body {
   }
 
   .trip-app [data-slot='card'] {
+    border-color: rgb(15 76 63 / 0.1);
     box-shadow:
-      0 18px 45px rgb(15 23 42 / 0.07),
-      0 1px 0 rgb(255 255 255 / 0.7) inset;
+      0 10px 30px rgb(15 23 42 / 0.055),
+      0 1px 0 rgb(255 255 255 / 0.82) inset;
+  }
+
+  .trip-app [data-slot='card-title'] {
+    font-weight: 650;
+    letter-spacing: 0;
   }
 
   .trip-app input,
@@ -167,6 +180,16 @@ body {
   .trip-app textarea:focus,
   .trip-app select:focus {
     border-color: rgb(15 118 110 / 0.45);
+  }
+
+  .trip-hero-card {
+    background: #123f36;
+    box-shadow: 0 20px 50px rgb(11 61 51 / 0.18) !important;
+  }
+
+  .trip-score-tile {
+    background: rgb(255 255 255 / 0.96);
+    box-shadow: 0 8px 24px rgb(4 34 28 / 0.14);
   }
 
   .no-scrollbar {
