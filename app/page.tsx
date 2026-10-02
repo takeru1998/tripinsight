@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Check,
   ChevronRight,
+  CircleHelp,
   CloudDownload,
   CloudRain,
   CloudUpload,
@@ -18,6 +19,7 @@ import {
   LogOut,
   MailCheck,
   MapPin,
+  Menu,
   Pencil,
   Plus,
   RotateCcw,
@@ -214,8 +216,6 @@ const tabs = [
   '旅行登録',
   '宿診断',
   'リスク診断',
-  'プラン',
-  'プロフィール',
 ];
 
 const tabIcons: Record<string, React.ElementType> = {
@@ -223,8 +223,6 @@ const tabIcons: Record<string, React.ElementType> = {
   旅行登録: Plus,
   宿診断: Bed,
   リスク診断: ShieldAlert,
-  プラン: CreditCard,
-  プロフィール: UserRound,
 };
 
 const mobileTabLabels: Record<string, string> = {
@@ -677,6 +675,7 @@ function errorMessage(error: unknown) {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('ホーム');
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [preference, setPreference] =
     useState<UserTravelPreference>(mockPreference);
   const [travel, setTravel] = useState<Travel>(mockTravel);
@@ -1133,13 +1132,52 @@ export default function Home() {
       <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-4 pt-[env(safe-area-inset-top)] sm:px-6 sm:pt-4 lg:px-8">
         <header className="sticky top-0 z-20 -mx-4 border-b border-white/70 bg-white/75 px-4 py-3 shadow-sm backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+            <div className="relative flex min-w-0 items-center gap-2 sm:gap-3">
+              <button
+                aria-controls="account-menu"
+                aria-expanded={isHeaderMenuOpen}
+                aria-label="メニュー"
+                className="grid size-10 shrink-0 place-items-center rounded-lg border border-emerald-950/10 bg-white text-emerald-950 shadow-sm transition hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                onClick={() => setIsHeaderMenuOpen((open) => !open)}
+                type="button"
+              >
+                <Menu className="size-5" />
+              </button>
+              {isHeaderMenuOpen && (
+                <div
+                  className="absolute left-0 top-[calc(100%+0.75rem)] z-40 grid w-[min(78vw,260px)] gap-1.5 rounded-lg border border-emerald-950/10 bg-white p-2 shadow-2xl shadow-slate-950/15"
+                  id="account-menu"
+                >
+                  {[
+                    { label: 'プロフィール', icon: UserRound },
+                    { label: 'プラン', icon: CreditCard },
+                    { label: '使い方', icon: CircleHelp },
+                  ].map(({ label, icon: MenuIcon }) => (
+                    <button
+                      className={`flex min-h-11 items-center gap-3 rounded-md px-3 text-left text-sm font-medium transition ${
+                        activeTab === label
+                          ? 'bg-emerald-900 text-white'
+                          : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-950'
+                      }`}
+                      key={label}
+                      onClick={() => {
+                        setActiveTab(label);
+                        setIsHeaderMenuOpen(false);
+                      }}
+                      type="button"
+                    >
+                      <MenuIcon className="size-4" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="grid size-10 place-items-center rounded-lg bg-gradient-to-br from-emerald-900 to-teal-700 text-white shadow-sm shadow-emerald-900/25">
                 <ShieldCheck className="size-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-lg font-semibold leading-tight">TripInsight</p>
-                <p className="text-xs text-slate-500">
+                <p className="hidden text-xs text-slate-500 sm:block">
                   旅行の失敗を事前に見つけるAI
                 </p>
               </div>
@@ -1242,7 +1280,7 @@ export default function Home() {
 
         <nav
           aria-label="メインメニュー"
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-emerald-950/10 bg-white/95 px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-2 sm:rounded-lg sm:border sm:border-white/70 sm:bg-white/70 sm:px-4 sm:py-2 sm:shadow-sm"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-emerald-950/10 bg-white/95 px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-2 sm:rounded-lg sm:border sm:border-white/70 sm:bg-white/70 sm:px-4 sm:py-2 sm:shadow-sm"
         >
           {tabs.map((tab) => {
             const TabIcon = tabIcons[tab];
@@ -1256,7 +1294,10 @@ export default function Home() {
                     ? 'bg-emerald-900 text-white'
                     : 'text-slate-600 hover:bg-emerald-50'
                 }`}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setIsHeaderMenuOpen(false);
+                }}
                 type="button"
               >
                 <TabIcon className="size-4" />
@@ -1800,6 +1841,54 @@ export default function Home() {
                   </CardContent>
                 </Card>
               </div>
+            )}
+
+            {activeTab === '使い方' && (
+              <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CircleHelp className="size-5 text-teal-700" />
+                    TripInsightの使い方
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    {
+                      title: '1. 旅行を登録',
+                      description:
+                        '旅行名、日程、出発地、同行者、予算を入力し、旅程と宿泊先を登録します。',
+                      icon: Plus,
+                    },
+                    {
+                      title: '2. 宿と旅程を確認',
+                      description:
+                        '宿診断で好みとの相性を確認し、編集時はAIの改善案から必要な項目だけを採用できます。',
+                      icon: Bed,
+                    },
+                    {
+                      title: '3. リスクを診断',
+                      description:
+                        '旅行ごとの注意点と回避プランを確認し、必要に応じて旅行プランを編集します。',
+                      icon: ShieldAlert,
+                    },
+                  ].map(({ title, description, icon: GuideIcon }) => (
+                    <div
+                      className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-4"
+                      key={title}
+                    >
+                      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-900 text-white">
+                        <GuideIcon className="size-4" />
+                      </span>
+                      <div>
+                        <p className="font-medium text-slate-900">{title}</p>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                          {description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
             )}
 
             {activeTab === '旅行登録' && (
