@@ -36,6 +36,16 @@ export function daysUntil(date: string, now = new Date()) {
   return Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86_400_000));
 }
 
+export function tripScheduleLabel(record: ValidatableTripRecord, now = new Date()) {
+  const startDate = parseLocalDate(record.travel.startDate);
+  const endDate = parseLocalDate(record.travel.endDate || record.travel.startDate);
+  if (!startDate || !endDate) return null;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (today > endDate) return '終了';
+  if (today >= startDate) return '旅行中';
+  return `出発まであと${daysUntil(record.travel.startDate, now)}日`;
+}
+
 export function tripDateTime(record: ValidatableTripRecord) {
   return parseLocalDate(record.travel.startDate)?.getTime() ?? Number.POSITIVE_INFINITY;
 }

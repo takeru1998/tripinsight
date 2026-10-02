@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { daysUntil, normalizeItineraryDates, validateTripRecord } from './tripLogic.ts';
+import {
+  daysUntil,
+  normalizeItineraryDates,
+  tripScheduleLabel,
+  validateTripRecord,
+} from './tripLogic.ts';
 import type { ValidatableTripRecord } from './tripLogic.ts';
 
 const record: ValidatableTripRecord = {
@@ -56,6 +61,12 @@ const record: ValidatableTripRecord = {
 
 void test('daysUntil uses the supplied current date', () => {
   assert.equal(daysUntil('2026-10-10', new Date(2026, 9, 2, 18)), 8);
+});
+
+void test('tripScheduleLabel distinguishes upcoming, active, and finished trips', () => {
+  assert.equal(tripScheduleLabel(record, new Date(2026, 9, 2)), '出発まであと8日');
+  assert.equal(tripScheduleLabel(record, new Date(2026, 9, 10)), '旅行中');
+  assert.equal(tripScheduleLabel(record, new Date(2026, 9, 12)), '終了');
 });
 
 void test('normalizeItineraryDates migrates old itinerary data', () => {

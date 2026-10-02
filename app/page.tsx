@@ -52,11 +52,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { mockPreference } from '@/data/mockTrip';
 import {
   buildDynamicImprovements,
-  daysUntil,
   isCurrentOrFutureTrip,
   normalizeItineraryDates,
   toMinutes,
   tripDateTime,
+  tripScheduleLabel,
   validateTripRecord,
   type ItineraryImprovementOption,
 } from '@/lib/tripLogic';
@@ -154,6 +154,8 @@ const emptyReview: TravelReview = {
   good: '',
   failed: '',
 };
+
+const emptyItinerary: ItineraryItem[] = [];
 
 const preferenceLabels: Record<PreferenceKey, string> = {
   onsen: '温泉',
@@ -330,11 +332,10 @@ function PriorityControl({
       <div
         aria-label={label}
         className="grid grid-cols-5 gap-1.5"
-        role="radiogroup"
       >
         {[1, 2, 3, 4, 5].map((level) => (
           <button
-            aria-checked={value === level}
+            aria-pressed={value === level}
             aria-label={`優先度${level}`}
             className={`h-8 rounded-md border transition ${
               level <= value
@@ -343,7 +344,6 @@ function PriorityControl({
             } ${value === level ? 'ring-2 ring-emerald-900/20' : ''}`}
             key={level}
             onClick={() => onChange(level)}
-            role="radio"
             type="button"
           >
             <span
@@ -767,7 +767,7 @@ export default function Home() {
     const futureTrips = trips
       .filter((trip) => isCurrentOrFutureTrip(trip))
       .sort((a, b) => tripDateTime(a) - tripDateTime(b));
-    return futureTrips[0] ?? trips[0] ?? null;
+    return futureTrips[0] ?? null;
   }, [trips]);
   const detailTrip = useMemo(
     () =>
@@ -811,9 +811,9 @@ export default function Home() {
         : [],
     [detailTrip, detailRiskDiagnosis],
   );
-  const topTravel = nearestTrip?.travel ?? travel;
-  const topAccommodation = nearestTrip?.accommodation ?? accommodation;
-  const topItinerary = nearestTrip?.itinerary ?? itinerary;
+  const topTravel = nearestTrip?.travel ?? emptyTravel;
+  const topAccommodation = nearestTrip?.accommodation ?? emptyAccommodation;
+  const topItinerary = nearestTrip?.itinerary ?? emptyItinerary;
   const topHotelDiagnosis = useMemo(
     () =>
       (nearestTrip ? diagnoses[nearestTrip.id]?.hotel : undefined) ??
@@ -834,9 +834,9 @@ export default function Home() {
         travel: topTravel,
         accommodation: topAccommodation,
         itinerary: topItinerary,
-        review: nearestTrip?.review ?? review,
+        review: nearestTrip?.review ?? emptyReview,
       }),
-    [diagnoses, nearestTrip, topTravel, topAccommodation, topItinerary, review],
+    [diagnoses, nearestTrip, topTravel, topAccommodation, topItinerary],
   );
   const nextActions = useMemo(
     () => buildNextActions(nearestTrip, topRiskDiagnosis),
@@ -863,7 +863,7 @@ export default function Home() {
         return tripDateTime(a.trip) - tripDateTime(b.trip);
       });
   }, [diagnoses, trips, tripFilter, tripSort]);
-  const remainingDays = daysUntil(topTravel.startDate);
+  const topSchedule = nearestTrip ? tripScheduleLabel(nearestTrip) : null;
   function updatePreference(key: PreferenceKey, value: number) {
     setPreference((current) => ({ ...current, [key]: value }));
   }
@@ -1183,7 +1183,15 @@ export default function Home() {
         delete next[record.id];
         return next;
       });
-      if (selectedTripId === record.id) startNewTrip();
+      if (selectedTripId === record.id) {
+        setTravel(emptyTravel);
+        setAccommodation(emptyAccommodation);
+        setItinerary([]);
+        setReview(emptyReview);
+        setSelectedTripId(null);
+        setPreviousItinerary(null);
+        setSelectedImprovementId(null);
+      }
       if (riskDetailTripId === record.id) setRiskDetailTripId(null);
       if (detailTripId === record.id) setDetailTripId(null);
       setPendingDeleteTripId(null);
@@ -1270,17 +1278,15 @@ export default function Home() {
 
         {activeTab === 'ホーム' && (
           <section className="grid gap-4 py-5 lg:grid-cols-[1.16fr_0.84fr]">
+          {nearestTrip ? (
+          <>
           <Card className="trip-hero-card overflow-hidden rounded-lg border-0 text-white">
             <CardContent className="space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-2">
-                  {remainingDays === null ? (
-                    <Badge className="w-fit bg-white/12 text-emerald-50 ring-1 ring-white/20">
-                      新規旅行を作成中
-                    </Badge>
-                  ) : (
+                  {topSchedule && (
                     <Badge className="w-fit bg-[#c9f2e5] text-[#123f36] ring-1 ring-white/20">
-                      次の旅行まであと{remainingDays}日
+                      {topSchedule === '旅行中' ? topSchedule : `次の旅行まで${topSchedule.replace('出発まで', '')}`}
                     </Badge>
                   )}
                   <div>
@@ -1358,6 +1364,23 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
+          </>
+          ) : (
+            <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm lg:col-span-2">
+              <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-lg font-semibold text-slate-900">次の旅行はまだありません</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    旅行を登録すると、宿・旅程・当日リスクの診断が表示されます。
+                  </p>
+                </div>
+                <Button onClick={startNewTrip}>
+                  <Plus className="size-4" />
+                  旅行を登録
+                </Button>
+              </CardContent>
+            </Card>
+          )}
           </section>
         )}
 
@@ -1401,10 +1424,18 @@ export default function Home() {
           })}
         </nav>
 
-        <section className="grid flex-1 gap-4 pb-28 pt-4 sm:pb-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section
+          className={`grid flex-1 gap-4 pb-28 pt-4 sm:pb-5 ${
+            activeTab === 'ホーム'
+              ? 'lg:grid-cols-[minmax(0,1fr)_340px]'
+              : 'lg:grid-cols-1'
+          }`}
+        >
           <div className="space-y-4">
             {activeTab === 'ホーム' && (
               <div className="grid gap-4">
+                {nearestTrip && (
+                <>
                 <Card className="rounded-lg border-emerald-950/8 bg-white/90 shadow-sm">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex flex-wrap items-center justify-between gap-3">
@@ -1470,7 +1501,7 @@ export default function Home() {
                       </div>
                     ) : (
                       displayedTrips.map(({ trip, risk, missing }) => {
-                        const tripDays = daysUntil(trip.travel.startDate);
+                        const tripSchedule = tripScheduleLabel(trip);
                         const isSelected = selectedTripId === trip.id;
                         const tone = riskTone(risk.riskPercent);
                         return (
@@ -1502,7 +1533,7 @@ export default function Home() {
                               <p className="text-xs leading-relaxed text-slate-500">
                                 {trip.accommodation.name || '宿未設定'} / 旅程{' '}
                                 {trip.itinerary.length}件
-                                {tripDays !== null && ` / 出発まであと${tripDays}日`}
+                                {tripSchedule && ` / ${tripSchedule}`}
                               </p>
                               <p className="text-xs font-medium text-slate-500">
                                 最も注意: {topRiskLabel(risk)}
@@ -1579,7 +1610,11 @@ export default function Home() {
                 </Card>
                 <Card className="rounded-lg border-emerald-950/8 bg-white/90 shadow-sm">
                   <CardHeader>
-                    <CardTitle>AIが見つけた問題点</CardTitle>
+                    <CardTitle>
+                      {diagnoses[nearestTrip.id]?.itinerary
+                        ? 'AIが見つけた問題点'
+                        : '参考診断で見つけた問題点'}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {topItineraryDiagnosis.issues.slice(0, 5).map((issue) => (
@@ -1593,6 +1628,8 @@ export default function Home() {
                     ))}
                   </CardContent>
                 </Card>
+                </>
+                )}
               </div>
             )}
 
@@ -2848,6 +2885,7 @@ export default function Home() {
             )}
           </div>
 
+          {activeTab === 'ホーム' && (
           <aside className="space-y-4">
             <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
               <CardHeader>
@@ -2901,15 +2939,16 @@ export default function Home() {
 
             <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
               <CardHeader>
-                <CardTitle>連携予定</CardTitle>
+                <CardTitle>システム連携</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-slate-600">
                 <p>AWS: Cognito / API Gateway / Lambda / DynamoDB / S3</p>
-                <p>AI: Bedrock優先、OpenAI APIへ切り替え可能</p>
-                <p>外部API: 天気 / Maps / Places / 交通 / 営業時間</p>
+                <p>AI: Amazon Bedrock / Claude Sonnet 4.5</p>
+                <p>外部情報は未連携のため、天気・交通は前日に再確認が必要です</p>
               </CardContent>
             </Card>
           </aside>
+          )}
         </section>
       </div>
     </main>
