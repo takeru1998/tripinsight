@@ -860,6 +860,9 @@ export default function Home() {
       })
       .sort((a, b) => {
         if (tripSort === 'risk') return b.risk.riskPercent - a.risk.riskPercent;
+        const aUpcoming = isCurrentOrFutureTrip(a.trip);
+        const bUpcoming = isCurrentOrFutureTrip(b.trip);
+        if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
         return tripDateTime(a.trip) - tripDateTime(b.trip);
       });
   }, [diagnoses, trips, tripFilter, tripSort]);
@@ -2449,7 +2452,12 @@ export default function Home() {
               <div className="grid gap-4">
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
-                    <CardTitle>宿泊先AI診断</CardTitle>
+                    <CardTitle className="flex flex-wrap items-center justify-between gap-2">
+                      <span>宿泊先AI診断</span>
+                      <Badge variant="outline">
+                        対象: {travel.name || '未保存の旅行'}
+                      </Badge>
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
