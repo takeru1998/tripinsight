@@ -340,7 +340,7 @@ function scoreTone(score: number) {
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="text-xs font-medium text-slate-600">{children}</label>;
+  return <label className="text-xs font-semibold text-slate-500">{children}</label>;
 }
 
 function SelectField({
@@ -357,7 +357,7 @@ function SelectField({
   return (
     <select
       aria-label={label}
-      className="h-9 w-full rounded-lg border border-input bg-background px-2 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -382,7 +382,7 @@ function TimeSelect({
   return (
     <select
       aria-label={label}
-      className="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -1198,8 +1198,8 @@ export default function Home() {
               <span className="hidden sm:inline">新しい旅行を診断</span>
             </Button>
           </div>
-          <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-            <Save className="size-3.5" />
+          <p className="mt-2 flex items-center gap-2 text-[11px] font-medium text-slate-400">
+            <span className="size-1.5 rounded-full bg-teal-500 shadow-[0_0_0_3px_rgb(20_184_166/10%)]" />
             {saveState}
           </p>
         </header>
@@ -1262,21 +1262,33 @@ export default function Home() {
           </Card>
 
           <Card className="rounded-lg border-amber-200/70 bg-[#fffaf0] shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-amber-950">
-                <AlertTriangle className="size-5" />
-                重要な注意
+            <CardHeader className="pb-1">
+              <CardTitle className="flex items-center gap-3 text-amber-950">
+                <span className="grid size-9 place-items-center rounded-lg bg-amber-100 text-amber-800">
+                  <AlertTriangle className="size-4" />
+                </span>
+                <span>
+                  <span className="block text-[10px] font-semibold text-amber-700">
+                    TRAVEL ALERT
+                  </span>
+                  <span className="block">重要な注意</span>
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm leading-relaxed text-amber-950">
                 {topRiskDiagnosis.critical}
               </p>
-              <div className="rounded-lg bg-white/70 p-3 text-sm text-slate-700">
-                次にやるべきこと
+              <div className="rounded-lg border border-amber-200/60 bg-white/75 p-3 text-sm text-slate-700">
+                <p className="text-xs font-semibold text-amber-900">
+                  次にやるべきこと
+                </p>
                 <ul className="mt-2 space-y-2 text-sm">
                   {nextActions.map((action) => (
-                    <li key={action}>{action}</li>
+                    <li className="flex gap-2" key={action}>
+                      <Check className="mt-0.5 size-4 shrink-0 text-teal-700" />
+                      <span>{action}</span>
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -1287,7 +1299,7 @@ export default function Home() {
 
         <nav
           aria-label="メインメニュー"
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-emerald-950/10 bg-[#fbfdfc]/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-12px_34px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-1 sm:rounded-lg sm:border sm:border-emerald-950/8 sm:bg-white/80 sm:px-2 sm:py-2 sm:shadow-sm"
+          className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-4 rounded-lg border border-emerald-950/10 bg-[#fbfdfc]/95 px-1 py-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_14px_40px_rgb(15_23_42/18%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-1 sm:border-emerald-950/8 sm:bg-white/80 sm:px-2 sm:py-2 sm:shadow-sm"
         >
           {tabs.map((tab) => {
             const TabIcon = tabIcons[tab];
@@ -1296,10 +1308,10 @@ export default function Home() {
                 aria-current={activeTab === tab ? 'page' : undefined}
                 aria-label={tab}
                 key={tab}
-                className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 py-1.5 text-[10px] font-medium transition sm:h-9 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm ${
+                className={`flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 text-[10px] font-medium transition sm:h-9 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm ${
                   activeTab === tab
-                    ? 'bg-[#123f36] text-white shadow-sm'
-                    : 'text-slate-500 hover:bg-emerald-50 hover:text-emerald-900'
+                    ? 'text-[#0f5a49]'
+                    : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-900'
                 }`}
                 onClick={() => {
                   setActiveTab(tab);
@@ -1307,7 +1319,15 @@ export default function Home() {
                 }}
                 type="button"
               >
-                <TabIcon className="size-4" />
+                <span
+                  className={`grid size-7 place-items-center rounded-md transition sm:size-auto ${
+                    activeTab === tab
+                      ? 'bg-[#123f36] text-white shadow-sm'
+                      : 'bg-transparent'
+                  }`}
+                >
+                  <TabIcon className="size-4" />
+                </span>
                 <span className="max-w-full truncate sm:hidden">
                   {mobileTabLabels[tab] || tab}
                 </span>
@@ -1317,16 +1337,23 @@ export default function Home() {
           })}
         </nav>
 
-        <section className="grid flex-1 gap-4 pb-28 pt-5 sm:pb-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="grid flex-1 gap-4 pb-28 pt-4 sm:pb-5 lg:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-4">
             {activeTab === 'ホーム' && (
               <div className="grid gap-4">
-                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
-                  <CardHeader>
+                <Card className="rounded-lg border-emerald-950/8 bg-white/90 shadow-sm">
+                  <CardHeader className="pb-2">
                     <CardTitle className="flex flex-wrap items-center justify-between gap-3">
-                      <span className="flex items-center gap-2">
-                        <ListFilter className="size-5 text-teal-700" />
-                        予定された旅行
+                      <span className="flex items-center gap-3">
+                        <span className="grid size-9 place-items-center rounded-lg bg-teal-50 text-teal-700">
+                          <ListFilter className="size-4" />
+                        </span>
+                        <span>
+                          <span className="block text-[10px] font-semibold text-teal-700">
+                            MY TRIPS
+                          </span>
+                          <span className="block">予定された旅行</span>
+                        </span>
                       </span>
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="w-32">
@@ -1385,15 +1412,15 @@ export default function Home() {
                         return (
                           <div
                             key={trip.id}
-                            className={`grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_auto] ${
+                            className={`group grid gap-3 rounded-lg border p-4 transition sm:grid-cols-[1fr_auto] ${
                               isSelected
-                                ? 'border-emerald-700 bg-emerald-50'
-                                : 'border-slate-200 bg-white'
+                                ? 'border-teal-500 bg-teal-50/70 shadow-sm'
+                                : 'border-slate-200/80 bg-[#fcfdfc] hover:border-teal-300 hover:shadow-sm'
                             }`}
                           >
                             <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-medium text-slate-900">
+                                <p className="font-semibold text-slate-900">
                                   {trip.travel.name}
                                 </p>
                                 <Badge className={tone.badge}>
@@ -1403,17 +1430,17 @@ export default function Home() {
                                   <Badge variant="outline">未入力あり</Badge>
                                 )}
                               </div>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs leading-relaxed text-slate-500">
                                 {trip.travel.startDate || '日程未設定'} -{' '}
                                 {trip.travel.endDate || '日程未設定'} /{' '}
                                 {trip.travel.transport} / {trip.travel.people}名
                               </p>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs leading-relaxed text-slate-500">
                                 {trip.accommodation.name || '宿未設定'} / 旅程{' '}
                                 {trip.itinerary.length}件
                                 {tripDays !== null && ` / 出発まであと${tripDays}日`}
                               </p>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs font-medium text-slate-500">
                                 最も注意: {topRiskLabel(risk)}
                               </p>
                             </div>
@@ -1433,7 +1460,7 @@ export default function Home() {
                                 編集
                               </Button>
                               <Button
-                                className="bg-emerald-900 hover:bg-emerald-800"
+                                className="bg-[#123f36] shadow-sm hover:bg-[#0f5a49]"
                                 onClick={() => openRiskDetail(trip)}
                               >
                                 <ShieldAlert className="size-4" />
@@ -1446,7 +1473,7 @@ export default function Home() {
                     )}
                   </CardContent>
                 </Card>
-                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                <Card className="rounded-lg border-emerald-950/8 bg-white/90 shadow-sm">
                   <CardHeader>
                     <CardTitle>直近旅行の診断サマリー</CardTitle>
                   </CardHeader>
@@ -1458,7 +1485,7 @@ export default function Home() {
                     )}
                   </CardContent>
                 </Card>
-                <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                <Card className="rounded-lg border-emerald-950/8 bg-white/90 shadow-sm">
                   <CardHeader>
                     <CardTitle>AIが見つけた問題点</CardTitle>
                   </CardHeader>
@@ -1466,7 +1493,7 @@ export default function Home() {
                     {topItineraryDiagnosis.issues.slice(0, 5).map((issue) => (
                       <div
                         key={issue}
-                        className="flex gap-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
+                        className="flex gap-3 rounded-lg border border-slate-200/70 bg-[#fafbf9] p-3 text-sm text-slate-700"
                       >
                         <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
                         {issue}

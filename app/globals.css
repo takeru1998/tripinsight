@@ -169,17 +169,31 @@ body {
     letter-spacing: 0;
   }
 
+  .trip-app [data-slot='button'] {
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
+  }
+
   .trip-app input,
   .trip-app textarea,
   .trip-app select {
     background-color: rgb(255 255 255 / 0.86);
     border-color: rgb(15 118 110 / 0.18);
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.035),
+      0 0 0 1px rgb(255 255 255 / 0.55) inset;
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      background-color 160ms ease;
   }
 
   .trip-app input:focus,
   .trip-app textarea:focus,
   .trip-app select:focus {
     border-color: rgb(15 118 110 / 0.45);
+    background-color: #fff;
+    box-shadow: 0 0 0 3px rgb(13 148 136 / 0.1);
   }
 
   .trip-hero-card {
