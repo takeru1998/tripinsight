@@ -214,7 +214,6 @@ const tabs = [
   '旅行登録',
   '宿診断',
   'リスク診断',
-  'カルテ',
   'プラン',
   'プロフィール',
 ];
@@ -224,7 +223,6 @@ const tabIcons: Record<string, React.ElementType> = {
   旅行登録: Plus,
   宿診断: Bed,
   リスク診断: ShieldAlert,
-  カルテ: ClipboardList,
   プラン: CreditCard,
   プロフィール: UserRound,
 };
@@ -296,26 +294,6 @@ const itineraryImprovementOptions: Array<{
         ? { ...item, start: '16:30', end: '16:50' }
         : item,
   },
-];
-
-const reviewMetrics: Array<{
-  label: string;
-  key: keyof Pick<
-    TravelReview,
-    | 'hotelSatisfaction'
-    | 'foodSatisfaction'
-    | 'sightseeingSatisfaction'
-    | 'transitFatigue'
-    | 'scheduleAmount'
-    | 'overallSatisfaction'
-  >;
-}> = [
-  { label: '宿満足度', key: 'hotelSatisfaction' },
-  { label: '食事満足度', key: 'foodSatisfaction' },
-  { label: '観光満足度', key: 'sightseeingSatisfaction' },
-  { label: '移動疲労', key: 'transitFatigue' },
-  { label: '予定量', key: 'scheduleAmount' },
-  { label: '総合満足度', key: 'overallSatisfaction' },
 ];
 
 function currency(value: number) {
@@ -718,7 +696,6 @@ export default function Home() {
   const [detailReturnTab, setDetailReturnTab] = useState('ホーム');
   const [tripFilter, setTripFilter] = useState<TripListFilter>('all');
   const [tripSort, setTripSort] = useState<TripListSort>('date');
-  const [improved, setImproved] = useState(false);
   const [previousItinerary, setPreviousItinerary] = useState<
     ItineraryItem[] | null
   >(null);
@@ -1028,7 +1005,6 @@ export default function Home() {
     setRiskDetailTripId(mockTravel.id);
     setDetailTripId(mockTravel.id);
     setRiskPlanTripId(null);
-    setImproved(false);
     setPreviousItinerary(null);
     setSelectedImprovementId(null);
     setSaveState('モック旅行に戻しました');
@@ -1048,7 +1024,6 @@ export default function Home() {
     setRiskPlanTripId(null);
     setPreviousItinerary(null);
     setSelectedImprovementId(null);
-    setImproved(false);
     setActiveTab('旅行登録');
     setSaveState('新規旅行を作成中');
   }
@@ -1091,7 +1066,6 @@ export default function Home() {
     setDetailTripId(record.id);
     setPreviousItinerary(null);
     setSelectedImprovementId(null);
-    setImproved(false);
     setActiveTab('旅行登録');
     setSaveState(`${record.travel.name}を表示中`);
   }
@@ -1113,7 +1087,6 @@ export default function Home() {
     setRiskDetailTripId(record.id);
     setDetailTripId(record.id);
     setPreviousItinerary(null);
-    setImproved(false);
     setActiveTab('リスク診断');
     setSaveState(`${record.travel.name}のリスク診断を表示中`);
     if (shouldScroll) scrollToRiskDetail();
@@ -1129,7 +1102,6 @@ export default function Home() {
     setDetailReturnTab(returnTab);
     setPreviousItinerary(null);
     setSelectedImprovementId(null);
-    setImproved(false);
     setActiveTab('旅行詳細');
     setSaveState(`${record.travel.name}の詳細を表示中`);
   }
@@ -1147,7 +1119,6 @@ export default function Home() {
 
     setPreviousItinerary(itinerary);
     setItinerary(itinerary.map(selectedImprovement.apply));
-    setImproved(true);
   }
 
   function undoImprovement() {
@@ -1155,7 +1126,6 @@ export default function Home() {
     setItinerary(previousItinerary);
     setPreviousItinerary(null);
     setSelectedImprovementId(null);
-    setImproved(false);
   }
 
   return (
@@ -1189,7 +1159,8 @@ export default function Home() {
           </p>
         </header>
 
-        <section className="grid gap-4 py-5 lg:grid-cols-[1.1fr_0.9fr]">
+        {activeTab === 'ホーム' && (
+          <section className="grid gap-4 py-5 lg:grid-cols-[1.1fr_0.9fr]">
           <Card className="rounded-lg border-white/70 bg-[linear-gradient(135deg,#ffffff_0%,#f2faf6_54%,#e7f3f1_100%)] shadow-xl shadow-emerald-950/8">
             <CardContent className="space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1266,11 +1237,12 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
-        </section>
+          </section>
+        )}
 
         <nav
           aria-label="メインメニュー"
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-emerald-950/10 bg-white/95 px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-2 sm:rounded-lg sm:border sm:border-white/70 sm:bg-white/70 sm:px-4 sm:py-2 sm:shadow-sm"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-emerald-950/10 bg-white/95 px-1 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_28px_rgb(15_23_42/10%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-2 sm:rounded-lg sm:border sm:border-white/70 sm:bg-white/70 sm:px-4 sm:py-2 sm:shadow-sm"
         >
           {tabs.map((tab) => {
             const TabIcon = tabIcons[tab];
@@ -2532,65 +2504,6 @@ export default function Home() {
               </div>
             )}
 
-            {activeTab === 'カルテ' && (
-              <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
-                <CardHeader>
-                  <CardTitle>旅行カルテ</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {reviewMetrics.map(({ label, key }) => (
-                      <div key={key} className="space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-600">{label}</span>
-                          <span className="font-medium text-emerald-800">
-                            {review[key]}
-                          </span>
-                        </div>
-                        <input
-                          aria-label={label}
-                          className="w-full accent-emerald-800"
-                          max="5"
-                          min="1"
-                          onChange={(event) =>
-                            setReview({
-                              ...review,
-                              [key]: Number(event.target.value),
-                            })
-                          }
-                          type="range"
-                          value={review[key]}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <FieldLabel>よかったこと</FieldLabel>
-                      <Textarea
-                        value={review.good}
-                        onChange={(event) =>
-                          setReview({ ...review, good: event.target.value })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <FieldLabel>失敗したこと</FieldLabel>
-                      <Textarea
-                        value={review.failed}
-                        onChange={(event) =>
-                          setReview({ ...review, failed: event.target.value })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-950">
-                    過去の旅行を見ると、1日4ヶ所以上観光すると満足度が下がる傾向を学習できます。
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
             {activeTab === 'プラン' && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
@@ -2614,7 +2527,7 @@ export default function Home() {
                     <p>旅行診断無制限</p>
                     <p>AI旅程改善・トラブル予報</p>
                     <p>前日/当日再診断</p>
-                    <p>旅行カルテと嗜好学習</p>
+                    <p>旅行履歴と嗜好学習</p>
                     <Button className="mt-2 bg-white text-emerald-950 hover:bg-emerald-50">
                       <CreditCard className="size-4" />
                       Premiumを確認
