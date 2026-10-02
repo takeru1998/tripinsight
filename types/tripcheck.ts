@@ -41,6 +41,7 @@ export type Accommodation = {
 
 export type ItineraryItem = {
   id: string;
+  date: string;
   title: string;
   place: string;
   start: string;
@@ -65,6 +66,14 @@ export type TravelDiagnosis = {
   categoryScores: ScoreMap;
   issues: string[];
   recommendations: string[];
+  improvements?: Array<{
+    id: string;
+    targetItemId: string;
+    title: string;
+    detail: string;
+    start?: string;
+    end?: string;
+  }>;
 };
 
 export type RiskDiagnosis = {

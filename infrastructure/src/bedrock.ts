@@ -18,6 +18,14 @@ const itineraryResultSchema = z.object({
   categoryScores: scoreMapSchema,
   issues: z.array(z.string()).max(5),
   recommendations: z.array(z.string()).max(10),
+  improvements: z.array(z.object({
+    id: z.string(),
+    targetItemId: z.string(),
+    title: z.string(),
+    detail: z.string(),
+    start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+    end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+  })).max(3).optional().default([]),
 });
 const riskResultSchema = z.object({
   riskPercent: z.number().min(0).max(100),
@@ -38,8 +46,8 @@ const definitions = {
     schema: hotelResultSchema,
   },
   itinerary: {
-    instruction: '旅程の移動効率、時間余裕、疲労、食事、観光、天候耐性、詰め込み度、宿との整合性を診断してください。',
-    shape: '{"score":0,"categoryScores":{},"issues":[],"recommendations":[]}',
+    instruction: '旅程の移動効率、時間余裕、疲労、食事、観光、天候耐性、詰め込み度、宿との整合性を診断してください。適用可能な改善案は入力に存在する旅程IDをtargetItemIdに指定し、変更後のstartまたはendを返してください。',
+    shape: '{"score":0,"categoryScores":{},"issues":[],"recommendations":[],"improvements":[{"id":"","targetItemId":"","title":"","detail":"","start":"HH:mm","end":"HH:mm"}]}',
     schema: itineraryResultSchema,
   },
   risk: {

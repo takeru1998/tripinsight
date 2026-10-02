@@ -25,13 +25,12 @@ export function createTripCheckApi({ baseUrl, getAccessToken }: ApiClientOptions
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const token = await getAccessToken();
     if (!token) throw new Error('ログインが必要です');
+    const headers = new Headers(init?.headers);
+    headers.set('content-type', 'application/json');
+    headers.set('authorization', `Bearer ${token}`);
     const response = await fetch(`${baseUrl.replace(/\/$/, '')}${path}`, {
       ...init,
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${token}`,
-        ...init?.headers,
-      },
+      headers,
     });
     if (!response.ok) {
       const message = await response.text();

@@ -9,6 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "mobile:build": "vite build --config vite.mobile.config.ts",
+    "test": "node --experimental-strip-types --test lib/*.test.ts",
     "ios:add": "npm run mobile:build && npx cap add ios",
     "ios:copy": "npm run mobile:build && npx cap copy ios",
     "ios:sync": "npm run mobile:build && npx cap sync ios",

@@ -18,6 +18,12 @@ function duration(item: ItineraryItem) {
   return Math.max(0, minutes(item.end) - minutes(item.start));
 }
 
+function orderedItinerary(itinerary: ItineraryItem[]) {
+  return [...itinerary].sort((a, b) =>
+    `${a.date}T${a.start}`.localeCompare(`${b.date}T${b.start}`),
+  );
+}
+
 export const mockAiProvider: AiProvider = {
   diagnoseHotel(
     preference: UserTravelPreference,
@@ -26,8 +32,8 @@ export const mockAiProvider: AiProvider = {
     const quietBonus = preference.quiet * 5;
     const onsenBonus = preference.onsen * 4;
     const latePenalty = accommodation.checkOut <= '10:00' ? 7 : 0;
-    const fixedDinnerPenalty = accommodation.dinner ? 3 : 0;
     const score = clampScore(72 + quietBonus / 3 + onsenBonus / 4 - latePenalty);
+    const hotelName = accommodation.name || 'この宿';
 
     return {
       score,
@@ -41,16 +47,24 @@ export const mockAiProvider: AiProvider = {
         ユーザー嗜好との一致度: score,
       }),
       reasons: [
-        '静かな宿を好む傾向と、客室数が少ない宿の特徴が一致しています',
-        '温泉重視の嗜好に対して、露天風呂付きの条件が強く合っています',
-        '観光を詰め込みすぎない旅行スタイルと、宿で過ごす時間の相性がよいです',
+        `${hotelName}の登録条件と、設定した旅行の好みを照合した参考評価です`,
+        preference.onsen >= 4
+          ? '温泉を重視する好みを強く反映しています'
+          : '食事・景色・移動のバランスを重視しています',
+        accommodation.location
+          ? `所在地「${accommodation.location}」と旅程の位置関係を確認すると精度が上がります`
+          : '所在地を入力すると、移動面の評価を改善できます',
       ],
       regretPoints: [
-        `チェックアウトが${accommodation.checkOut}のため、朝が苦手な人には少し早めです`,
-        `夕食開始が${accommodation.dinner}固定なので、到着遅れに弱いです`,
-        '駅からの送迎時刻を確認しないと、到着後に待ち時間が発生する可能性があります',
-        fixedDinnerPenalty
-          ? '貸切風呂や追加料理が別料金の場合、満足度と予算のズレが出ます'
+        accommodation.checkOut
+          ? `チェックアウトが${accommodation.checkOut}です。朝食後の準備時間を確保してください`
+          : 'チェックアウト時刻が未入力です',
+        accommodation.dinner
+          ? `夕食開始${accommodation.dinner}に遅れないよう、到着時間に余裕が必要です`
+          : '夕食時間と最終チェックイン条件を確認してください',
+        '送迎、駐車場、キャンセル条件は宿の公式情報で最終確認が必要です',
+        accommodation.price > 60000
+          ? '旅行予算に対する宿泊費の割合が高めです'
           : '',
       ].filter(Boolean),
     };
@@ -64,9 +78,14 @@ export const mockAiProvider: AiProvider = {
     const sightseeingMinutes = itinerary
       .filter((item) => item.category === '観光')
       .reduce((sum, item) => sum + duration(item), 0);
-    const gaps = itinerary
+    const ordered = orderedItinerary(itinerary);
+    const gaps = ordered
       .slice(1)
-      .map((item, index) => minutes(item.start) - minutes(itinerary[index].end));
+      .filter((item, index) => item.date === ordered[index].date)
+      .map((item) => {
+        const index = ordered.indexOf(item);
+        return minutes(item.start) - minutes(ordered[index - 1].end);
+      });
     const tightGaps = gaps.filter((gap) => gap < 25).length;
     const checkInItem = itinerary.find((item) => item.category === '宿泊');
     const dinnerBuffer = checkInItem
@@ -87,21 +106,32 @@ export const mockAiProvider: AiProvider = {
         宿との整合性: dinnerBuffer >= 75 ? 88 : 69,
       }),
       issues: [
-        '清津峡で混雑した場合、次のカフェ予定に間に合わない可能性があります',
-        `${accommodation.dinner}夕食に対して、チェックイン後の余裕が少なめです`,
-        '昼食後から観光地までの移動時間と待ち時間が十分に見込まれていません',
-        '雨天時に屋外移動が続くため、代替案がないと満足度が下がります',
+        tightGaps
+          ? `${tightGaps}か所で予定間の余裕が25分未満です`
+          : '予定間の大きな時間衝突は検出されませんでした',
+        accommodation.dinner
+          ? `${accommodation.dinner}の夕食に対し、宿到着の予備時間を確認してください`
+          : '宿の夕食時間が未入力のため整合性を確認できません',
+        sightseeingMinutes > 150
+          ? '観光時間が長く、移動を含めると疲労が蓄積する可能性があります'
+          : '観光量は比較的抑えられています',
+        '屋外予定には雨天時の代替案を用意すると安心です',
       ],
       recommendations: [
-        'カフェを短縮または翌日に移し、宿到着を16:30前後へ前倒しする',
-        '清津峡の滞在を70分程度に抑え、混雑時のバッファを確保する',
-        '雨天時は駅ナカ散策か宿のラウンジ時間に切り替える',
+        tightGaps
+          ? '移動の前後に30分程度の予備時間を追加する'
+          : '現在の余裕を維持し、予定を追加しすぎない',
+        checkInItem
+          ? `宿の予定「${checkInItem.title}」を夕食の90分以上前に設定する`
+          : '旅程に宿への到着予定を追加する',
+        '屋外の観光予定ごとに、近くの屋内代替案を1つ決めておく',
       ],
     };
   },
 
   forecastRisk(travel: Travel, itinerary: ItineraryItem[]): RiskDiagnosis {
     const outdoorPlans = itinerary.filter((item) => item.category === '観光').length;
+    const firstSight = itinerary.find((item) => item.category === '観光');
     const riskPercent = clampScore(34 + outdoorPlans * 8);
     return {
       riskPercent,
@@ -115,11 +145,13 @@ export const mockAiProvider: AiProvider = {
         疲労リスク: 44,
       }),
       critical:
-        '14時以降、清津峡周辺で雨の想定です。展望系の予定は午前寄せが安全です。',
+        firstSight
+          ? `「${firstSight.title}」など屋外予定は、天候と営業情報を前日に再確認してください。`
+          : '交通の遅延と営業時間を前日に再確認してください。',
       warnings: [
-        '人気観光地の待ち時間で、宿到着が夕食直前になる可能性があります',
-        '駅ナカ昼食は混雑時に20分以上ずれる想定が必要です',
-        '帰宅日の朝はチェックアウト時刻が早く、朝食後の準備時間が短めです',
+        '観光地や飲食店の待ち時間で、後続の予定が遅れる可能性があります',
+        `${travel.transport}の運行情報または道路情報を当日朝に確認してください`,
+        '食事・宿泊・体験のキャンセル条件と連絡先を控えてください',
       ],
     };
   },

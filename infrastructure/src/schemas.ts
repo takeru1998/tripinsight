@@ -29,6 +29,7 @@ export const accommodationSchema = z.object({
 
 export const itineraryItemSchema = z.object({
   id: z.string().min(1).max(100),
+  date: z.string().max(20).optional().default(''),
   title: z.string().min(1).max(200),
   place: z.string().max(300),
   start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
@@ -61,6 +62,14 @@ export const travelSchema = z.object({
   people: z.number().int().min(1).max(100),
   budget: z.number().nonnegative(),
   memo: z.string().max(5000),
+}).superRefine((travel, context) => {
+  if (travel.startDate && travel.endDate && travel.endDate < travel.startDate) {
+    context.addIssue({
+      code: 'custom',
+      path: ['endDate'],
+      message: 'endDate must be on or after startDate',
+    });
+  }
 });
 
 export const tripRecordSchema = z.object({
@@ -69,6 +78,28 @@ export const tripRecordSchema = z.object({
   accommodation: accommodationSchema,
   itinerary: z.array(itineraryItemSchema).max(200),
   review: reviewSchema,
+}).superRefine((record, context) => {
+  record.itinerary.forEach((item, index) => {
+    if (item.end <= item.start) {
+      context.addIssue({
+        code: 'custom',
+        path: ['itinerary', index, 'end'],
+        message: 'end must be after start',
+      });
+    }
+    if (
+      item.date &&
+      record.travel.startDate &&
+      record.travel.endDate &&
+      (item.date < record.travel.startDate || item.date > record.travel.endDate)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['itinerary', index, 'date'],
+        message: 'date must be within the travel period',
+      });
+    }
+  });
 });
 
 export const diagnosisRequestSchema = z.object({

@@ -49,13 +49,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
+import { mockPreference } from '@/data/mockTrip';
 import {
-  mockAccommodation,
-  mockItinerary,
-  mockPreference,
-  mockReview,
-  mockTravel,
-} from '@/data/mockTrip';
+  buildDynamicImprovements,
+  daysUntil,
+  isCurrentOrFutureTrip,
+  normalizeItineraryDates,
+  toMinutes,
+  tripDateTime,
+  validateTripRecord,
+  type ItineraryImprovementOption,
+} from '@/lib/tripLogic';
 import { mockAiProvider } from '@/services/ai/mockProvider';
 import { createTripCheckApi } from '@/services/api/tripcheckApi';
 import {
@@ -69,10 +73,12 @@ import {
 import { awsConfig } from '@/services/aws/config';
 import type {
   Accommodation,
+  HotelCompatibilityDiagnosis,
   ItineraryItem,
   PreferenceKey,
   RiskDiagnosis,
   Travel,
+  TravelDiagnosis,
   TravelReview,
   UserTravelPreference,
 } from '@/types/tripcheck';
@@ -88,6 +94,7 @@ type TripCheckState = {
   riskDetailTripId?: string | null;
   detailTripId?: string | null;
   riskPlanTripId?: string | null;
+  diagnoses?: DiagnosisMap;
 };
 
 type TripRecord = {
@@ -101,6 +108,14 @@ type TripRecord = {
 type TripListFilter = 'all' | 'attention' | 'missing';
 type TripListSort = 'date' | 'risk';
 type AuthMode = 'signin' | 'signup' | 'confirm';
+type DiagnosisKind = 'hotel' | 'itinerary' | 'risk';
+type TripDiagnosisSet = {
+  hotel?: HotelCompatibilityDiagnosis;
+  itinerary?: TravelDiagnosis;
+  risk?: RiskDiagnosis;
+  updatedAt?: string;
+};
+type DiagnosisMap = Record<string, TripDiagnosisSet>;
 
 const storageKey = 'tripcheck-mvp-state-v1';
 
@@ -139,62 +154,6 @@ const emptyReview: TravelReview = {
   good: '',
   failed: '',
 };
-
-const mockTrips: TripRecord[] = [
-  {
-    id: mockTravel.id,
-    travel: mockTravel,
-    accommodation: mockAccommodation,
-    itinerary: mockItinerary,
-    review: mockReview,
-  },
-  {
-    id: 'travel-hakone-002',
-    travel: {
-      ...mockTravel,
-      id: 'travel-hakone-002',
-      name: '箱根温泉リセット旅',
-      startDate: '2026-10-05',
-      endDate: '2026-10-06',
-      origin: '新宿駅',
-      transport: '電車',
-      companion: 'カップル',
-      budget: 76000,
-      memo: '移動を少なめにして温泉中心にしたい。',
-    },
-    accommodation: {
-      ...mockAccommodation,
-      name: '箱根 静庭の湯',
-      location: '神奈川県足柄下郡箱根町',
-    },
-    itinerary: [],
-    review: emptyReview,
-  },
-  {
-    id: 'travel-kyoto-003',
-    travel: {
-      ...mockTravel,
-      id: 'travel-kyoto-003',
-      name: '京都ゆっくり紅葉旅',
-      startDate: '2026-11-18',
-      endDate: '2026-11-20',
-      origin: '品川駅',
-      transport: '電車',
-      companion: '友人',
-      people: 3,
-      budget: 140000,
-      memo: '混雑を避けつつ紅葉と食事を楽しみたい。',
-    },
-    accommodation: {
-      ...mockAccommodation,
-      name: '東山 小径ホテル',
-      location: '京都府京都市東山区',
-      dinner: '',
-    },
-    itinerary: [],
-    review: emptyReview,
-  },
-];
 
 const preferenceLabels: Record<PreferenceKey, string> = {
   onsen: '温泉',
@@ -256,80 +215,24 @@ const transportModeOptions: NonNullable<ItineraryItem['transportMode']>[] = [
   'その他',
 ];
 
-type ItineraryImprovementId =
-  | 'cafe-time'
-  | 'kiyotsukyo-stay'
-  | 'early-checkin';
-
-const itineraryImprovementOptions: Array<{
-  id: ItineraryImprovementId;
-  title: string;
-  detail: string;
-  apply: (item: ItineraryItem) => ItineraryItem;
-}> = [
-  {
-    id: 'cafe-time',
-    title: 'カフェ時間を調整',
-    detail: 'カフェを15:30から15:05へ変更し、滞在を短縮',
-    apply: (item) =>
-      item.title === '温泉街カフェ'
-        ? { ...item, start: '15:05', end: '15:45' }
-        : item,
-  },
-  {
-    id: 'kiyotsukyo-stay',
-    title: '観光滞在を短縮',
-    detail: '清津峡の滞在を90分から70分へ変更',
-    apply: (item) =>
-      item.title === '清津峡' ? { ...item, end: '14:50' } : item,
-  },
-  {
-    id: 'early-checkin',
-    title: '宿到着を前倒し',
-    detail: '宿到着予定を16:30へ前倒し',
-    apply: (item) =>
-      item.title === '旅館チェックイン'
-        ? { ...item, start: '16:30', end: '16:50' }
-        : item,
-  },
-];
-
 function currency(value: number) {
   return new Intl.NumberFormat('ja-JP').format(value);
-}
-
-function daysUntil(date: string) {
-  if (!date) return null;
-  const now = new Date('2026-09-13T00:00:00-07:00');
-  const target = new Date(`${date}T00:00:00-07:00`);
-  if (Number.isNaN(target.getTime())) return null;
-  return Math.max(
-    0,
-    Math.ceil((target.getTime() - now.getTime()) / 86_400_000),
-  );
-}
-
-function tripDateTime(record: TripRecord) {
-  if (!record.travel.startDate) return Number.POSITIVE_INFINITY;
-  const target = new Date(`${record.travel.startDate}T00:00:00-07:00`);
-  return Number.isNaN(target.getTime())
-    ? Number.POSITIVE_INFINITY
-    : target.getTime();
 }
 
 function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function toMinutes(time: string) {
-  const [hour = '0', minute = '0'] = time.split(':');
-  return Number(hour) * 60 + Number(minute);
-}
-
 function countTightGaps(itineraryItems: ItineraryItem[]) {
-  return itineraryItems.slice(1).filter((item, index) => {
-    const previous = itineraryItems[index];
-    return toMinutes(item.start) - toMinutes(previous.end) < 25;
+  const ordered = [...itineraryItems].sort((a, b) =>
+    `${a.date}T${a.start}`.localeCompare(`${b.date}T${b.start}`),
+  );
+  return ordered.slice(1).filter((item, index) => {
+    const previous = ordered[index];
+    return (
+      item.date === previous.date &&
+      toMinutes(item.start) - toMinutes(previous.end) < 25
+    );
   }).length;
 }
 
@@ -682,19 +585,15 @@ export default function Home() {
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [preference, setPreference] =
     useState<UserTravelPreference>(mockPreference);
-  const [travel, setTravel] = useState<Travel>(mockTravel);
+  const [travel, setTravel] = useState<Travel>(emptyTravel);
   const [accommodation, setAccommodation] =
-    useState<Accommodation>(mockAccommodation);
-  const [itinerary, setItinerary] = useState<ItineraryItem[]>(mockItinerary);
-  const [review, setReview] = useState<TravelReview>(mockReview);
-  const [trips, setTrips] = useState<TripRecord[]>(mockTrips);
-  const [selectedTripId, setSelectedTripId] = useState<string | null>(
-    mockTravel.id,
-  );
-  const [riskDetailTripId, setRiskDetailTripId] = useState<string | null>(
-    mockTravel.id,
-  );
-  const [detailTripId, setDetailTripId] = useState<string | null>(mockTravel.id);
+    useState<Accommodation>(emptyAccommodation);
+  const [itinerary, setItinerary] = useState<ItineraryItem[]>([]);
+  const [review, setReview] = useState<TravelReview>(emptyReview);
+  const [trips, setTrips] = useState<TripRecord[]>([]);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [riskDetailTripId, setRiskDetailTripId] = useState<string | null>(null);
+  const [detailTripId, setDetailTripId] = useState<string | null>(null);
   const [riskPlanTripId, setRiskPlanTripId] = useState<string | null>(null);
   const [detailReturnTab, setDetailReturnTab] = useState('ホーム');
   const [tripFilter, setTripFilter] = useState<TripListFilter>('all');
@@ -703,7 +602,13 @@ export default function Home() {
     ItineraryItem[] | null
   >(null);
   const [selectedImprovementId, setSelectedImprovementId] =
-    useState<ItineraryImprovementId | null>(null);
+    useState<string | null>(null);
+  const [diagnoses, setDiagnoses] = useState<DiagnosisMap>({});
+  const [diagnosisBusy, setDiagnosisBusy] = useState<DiagnosisKind | null>(null);
+  const [diagnosisMessage, setDiagnosisMessage] = useState('');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [pendingDeleteTripId, setPendingDeleteTripId] = useState<string | null>(null);
+  const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState('端末内に自動保存');
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [authEmail, setAuthEmail] = useState('');
@@ -726,9 +631,27 @@ export default function Home() {
       if (stored.preference) setPreference(stored.preference);
       if (stored.travel) setTravel(stored.travel);
       if (stored.accommodation) setAccommodation(stored.accommodation);
-      if (stored.itinerary) setItinerary(stored.itinerary);
+      if (stored.itinerary) {
+        setItinerary(
+          normalizeItineraryDates(
+            stored.itinerary,
+            stored.travel?.startDate || '',
+          ),
+        );
+      }
       if (stored.review) setReview(stored.review);
-      if (stored.trips?.length) setTrips(stored.trips);
+      if (stored.trips) {
+        setTrips(
+          stored.trips.map((record) => ({
+            ...record,
+            itinerary: normalizeItineraryDates(
+              record.itinerary,
+              record.travel.startDate,
+            ),
+          })),
+        );
+      }
+      if (stored.diagnoses) setDiagnoses(stored.diagnoses);
       if ('selectedTripId' in stored) {
         setSelectedTripId(stored.selectedTripId ?? null);
       }
@@ -748,7 +671,9 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    getCurrentUserEmail().then((email) => setAuthUserEmail(email ?? null));
+    void getCurrentUserEmail()
+      .then((email) => setAuthUserEmail(email ?? null))
+      .catch(() => setAuthUserEmail(null));
   }, []);
 
   useEffect(() => {
@@ -763,6 +688,7 @@ export default function Home() {
       riskDetailTripId,
       detailTripId,
       riskPlanTripId,
+      diagnoses,
     };
     window.localStorage.setItem(storageKey, JSON.stringify(state));
   }, [
@@ -776,24 +702,55 @@ export default function Home() {
     riskDetailTripId,
     detailTripId,
     riskPlanTripId,
+    diagnoses,
   ]);
 
+  const currentTripId = selectedTripId ?? travel.id;
   const hotelDiagnosis = useMemo(
-    () => mockAiProvider.diagnoseHotel(preference, accommodation),
-    [preference, accommodation],
+    () =>
+      diagnoses[currentTripId]?.hotel ??
+      mockAiProvider.diagnoseHotel(preference, accommodation),
+    [diagnoses, currentTripId, preference, accommodation],
   );
   const itineraryDiagnosis = useMemo(
-    () => mockAiProvider.judgeItinerary(travel, accommodation, itinerary),
-    [travel, accommodation, itinerary],
+    () =>
+      diagnoses[currentTripId]?.itinerary ??
+      mockAiProvider.judgeItinerary(travel, accommodation, itinerary),
+    [diagnoses, currentTripId, travel, accommodation, itinerary],
   );
+  const itineraryImprovementOptions = useMemo<ItineraryImprovementOption[]>(() => {
+    const aiOptions = (itineraryDiagnosis.improvements ?? [])
+      .filter((option) => itinerary.some((item) => item.id === option.targetItemId))
+      .map((option) => ({
+        id: option.id,
+        title: option.title,
+        detail: option.detail,
+        apply: (items: ItineraryItem[]) =>
+          items.map((item) =>
+            item.id === option.targetItemId
+              ? {
+                  ...item,
+                  ...(option.start ? { start: option.start } : {}),
+                  ...(option.end ? { end: option.end } : {}),
+                }
+              : item,
+          ),
+      }));
+    return aiOptions.length
+      ? aiOptions
+      : buildDynamicImprovements(itinerary, accommodation);
+  }, [itineraryDiagnosis.improvements, itinerary, accommodation]);
   const riskDetailTrip = useMemo(
     () =>
       trips.find((trip) => trip.id === riskDetailTripId) ?? trips[0] ?? null,
     [trips, riskDetailTripId],
   );
   const riskDetailDiagnosis = useMemo(
-    () => (riskDetailTrip ? buildContextualRisk(riskDetailTrip) : null),
-    [riskDetailTrip],
+    () =>
+      riskDetailTrip
+        ? diagnoses[riskDetailTrip.id]?.risk ?? buildContextualRisk(riskDetailTrip)
+        : null,
+    [diagnoses, riskDetailTrip],
   );
   const riskDetailPlans = useMemo(
     () =>
@@ -807,9 +764,8 @@ export default function Home() {
     [riskDetailTrip],
   );
   const nearestTrip = useMemo(() => {
-    const now = new Date('2026-09-13T00:00:00-07:00').getTime();
     const futureTrips = trips
-      .filter((trip) => tripDateTime(trip) >= now)
+      .filter((trip) => isCurrentOrFutureTrip(trip))
       .sort((a, b) => tripDateTime(a) - tripDateTime(b));
     return futureTrips[0] ?? trips[0] ?? null;
   }, [trips]);
@@ -822,26 +778,31 @@ export default function Home() {
     [trips, detailTripId, selectedTripId, nearestTrip],
   );
   const detailRiskDiagnosis = useMemo(
-    () => (detailTrip ? buildContextualRisk(detailTrip) : null),
-    [detailTrip],
+    () =>
+      detailTrip
+        ? diagnoses[detailTrip.id]?.risk ?? buildContextualRisk(detailTrip)
+        : null,
+    [diagnoses, detailTrip],
   );
   const detailHotelDiagnosis = useMemo(
     () =>
       detailTrip
-        ? mockAiProvider.diagnoseHotel(preference, detailTrip.accommodation)
+        ? diagnoses[detailTrip.id]?.hotel ??
+          mockAiProvider.diagnoseHotel(preference, detailTrip.accommodation)
         : null,
-    [preference, detailTrip],
+    [diagnoses, preference, detailTrip],
   );
   const detailItineraryDiagnosis = useMemo(
     () =>
       detailTrip
-        ? mockAiProvider.judgeItinerary(
+        ? diagnoses[detailTrip.id]?.itinerary ??
+          mockAiProvider.judgeItinerary(
             detailTrip.travel,
             detailTrip.accommodation,
             detailTrip.itinerary,
           )
         : null,
-    [detailTrip],
+    [diagnoses, detailTrip],
   );
   const detailAvoidancePlans = useMemo(
     () =>
@@ -854,16 +815,20 @@ export default function Home() {
   const topAccommodation = nearestTrip?.accommodation ?? accommodation;
   const topItinerary = nearestTrip?.itinerary ?? itinerary;
   const topHotelDiagnosis = useMemo(
-    () => mockAiProvider.diagnoseHotel(preference, topAccommodation),
-    [preference, topAccommodation],
+    () =>
+      (nearestTrip ? diagnoses[nearestTrip.id]?.hotel : undefined) ??
+      mockAiProvider.diagnoseHotel(preference, topAccommodation),
+    [diagnoses, nearestTrip, preference, topAccommodation],
   );
   const topItineraryDiagnosis = useMemo(
     () =>
+      (nearestTrip ? diagnoses[nearestTrip.id]?.itinerary : undefined) ??
       mockAiProvider.judgeItinerary(topTravel, topAccommodation, topItinerary),
-    [topTravel, topAccommodation, topItinerary],
+    [diagnoses, nearestTrip, topTravel, topAccommodation, topItinerary],
   );
   const topRiskDiagnosis = useMemo(
     () =>
+      (nearestTrip ? diagnoses[nearestTrip.id]?.risk : undefined) ??
       buildContextualRisk({
         id: nearestTrip?.id ?? 'top',
         travel: topTravel,
@@ -871,7 +836,7 @@ export default function Home() {
         itinerary: topItinerary,
         review: nearestTrip?.review ?? review,
       }),
-    [nearestTrip, topTravel, topAccommodation, topItinerary, review],
+    [diagnoses, nearestTrip, topTravel, topAccommodation, topItinerary, review],
   );
   const nextActions = useMemo(
     () => buildNextActions(nearestTrip, topRiskDiagnosis),
@@ -880,7 +845,7 @@ export default function Home() {
   const displayedTrips = useMemo(() => {
     const rows = trips.map((trip) => ({
       trip,
-      risk: buildContextualRisk(trip),
+      risk: diagnoses[trip.id]?.risk ?? buildContextualRisk(trip),
       missing:
         !trip.travel.startDate ||
         !trip.travel.endDate ||
@@ -897,7 +862,7 @@ export default function Home() {
         if (tripSort === 'risk') return b.risk.riskPercent - a.risk.riskPercent;
         return tripDateTime(a.trip) - tripDateTime(b.trip);
       });
-  }, [trips, tripFilter, tripSort]);
+  }, [diagnoses, trips, tripFilter, tripSort]);
   const remainingDays = daysUntil(topTravel.startDate);
   function updatePreference(key: PreferenceKey, value: number) {
     setPreference((current) => ({ ...current, [key]: value }));
@@ -936,6 +901,13 @@ export default function Home() {
   }
 
   async function saveAllToAws() {
+    const errors = trips.flatMap((trip) =>
+      validateTripRecord(trip).map((error) => `${trip.travel.name || '名称未設定'}: ${error}`),
+    );
+    if (errors.length) {
+      setAuthMessage(`AWS保存の前に入力を修正してください。${errors[0]}`);
+      return;
+    }
     setAuthBusy(true);
     setAuthMessage('');
     try {
@@ -953,15 +925,25 @@ export default function Home() {
     setAuthBusy(true);
     setAuthMessage('');
     try {
-      const [storedPreference, storedTrips] = await Promise.all([
+      const [profileResult, tripsResult] = await Promise.allSettled([
         cloudApi.getProfile(),
         cloudApi.listTrips(),
       ]);
-      setPreference(storedPreference);
-      setTrips(storedTrips.items);
-      const firstTrip = storedTrips.items[0];
-      if (firstTrip) editTrip(firstTrip);
-      setAuthMessage(`${storedTrips.items.length}件の旅行をAWSから読み込みました`);
+      if (tripsResult.status === 'rejected') throw tripsResult.reason;
+      if (profileResult.status === 'fulfilled') setPreference(profileResult.value);
+      const loadedTrips = tripsResult.value.items.map((record) => ({
+        ...record,
+        itinerary: normalizeItineraryDates(
+          record.itinerary,
+          record.travel.startDate,
+        ),
+      }));
+      setTrips(loadedTrips);
+      setSelectedTripId(null);
+      setRiskDetailTripId(loadedTrips[0]?.id ?? null);
+      setDetailTripId(null);
+      setActiveTab('ホーム');
+      setAuthMessage(`${loadedTrips.length}件の旅行をAWSから読み込みました`);
     } catch (error) {
       setAuthMessage(errorMessage(error));
     } finally {
@@ -980,6 +962,7 @@ export default function Home() {
       ...items,
       {
         id: `i${Date.now()}`,
+        date: travel.startDate,
         title: '新しい予定',
         place: '',
         start: '10:00',
@@ -997,22 +980,6 @@ export default function Home() {
     setItinerary((items) => items.filter((item) => item.id !== id));
   }
 
-  function resetDemo() {
-    setPreference(mockPreference);
-    setTravel(mockTravel);
-    setAccommodation(mockAccommodation);
-    setItinerary(mockItinerary);
-    setReview(mockReview);
-    setTrips(mockTrips);
-    setSelectedTripId(mockTravel.id);
-    setRiskDetailTripId(mockTravel.id);
-    setDetailTripId(mockTravel.id);
-    setRiskPlanTripId(null);
-    setPreviousItinerary(null);
-    setSelectedImprovementId(null);
-    setSaveState('モック旅行に戻しました');
-  }
-
   function startNewTrip() {
     setTravel({
       ...emptyTravel,
@@ -1027,6 +994,8 @@ export default function Home() {
     setRiskPlanTripId(null);
     setPreviousItinerary(null);
     setSelectedImprovementId(null);
+    setValidationErrors([]);
+    setDiagnosisMessage('');
     setActiveTab('旅行登録');
     setSaveState('新規旅行を作成中');
   }
@@ -1036,7 +1005,7 @@ export default function Home() {
     const savedTravel = {
       ...travel,
       id,
-      name: travel.name || '名称未設定の旅行',
+      name: travel.name.trim(),
     };
     const record: TripRecord = {
       id,
@@ -1046,6 +1015,14 @@ export default function Home() {
       review,
     };
 
+    const errors = validateTripRecord(record);
+    if (errors.length) {
+      setValidationErrors(errors);
+      setSaveState('入力内容を確認してください');
+      return false;
+    }
+
+    setValidationErrors([]);
     setTravel(savedTravel);
     setSelectedTripId(id);
     setRiskDetailTripId(id);
@@ -1058,6 +1035,7 @@ export default function Home() {
       return [record, ...items];
     });
     setSaveState('保存しました');
+    return true;
   }
 
   function editTrip(record: TripRecord) {
@@ -1069,6 +1047,8 @@ export default function Home() {
     setDetailTripId(record.id);
     setPreviousItinerary(null);
     setSelectedImprovementId(null);
+    setValidationErrors([]);
+    setDiagnosisMessage('');
     setActiveTab('旅行登録');
     setSaveState(`${record.travel.name}を表示中`);
   }
@@ -1121,7 +1101,8 @@ export default function Home() {
     if (!selectedImprovement) return;
 
     setPreviousItinerary(itinerary);
-    setItinerary(itinerary.map(selectedImprovement.apply));
+    setItinerary(selectedImprovement.apply(itinerary));
+    setSaveState('改善案を反映しました。保存すると旅行一覧へ反映されます');
   }
 
   function undoImprovement() {
@@ -1129,6 +1110,89 @@ export default function Home() {
     setItinerary(previousItinerary);
     setPreviousItinerary(null);
     setSelectedImprovementId(null);
+    setSaveState('改善前の旅程へ戻しました');
+  }
+
+  function currentTripRecord(): TripRecord {
+    const id = selectedTripId || travel.id || `travel-${Date.now()}`;
+    return {
+      id,
+      travel: { ...travel, id, name: travel.name.trim() },
+      accommodation,
+      itinerary,
+      review,
+    };
+  }
+
+  async function runAiDiagnosis(kind: DiagnosisKind, record = currentTripRecord()) {
+    setDiagnosisMessage('');
+    if (!authUserEmail) {
+      setDiagnosisMessage('AI診断を実行するには、左上メニューのプロフィールからログインしてください');
+      return;
+    }
+    const errors = validateTripRecord(record);
+    if (errors.length) {
+      setValidationErrors(errors);
+      setDiagnosisMessage('旅行の入力内容を確認してからAI診断を実行してください');
+      return;
+    }
+    if (kind === 'hotel' && !record.accommodation.name.trim()) {
+      setDiagnosisMessage('宿泊施設名を入力してください');
+      return;
+    }
+
+    setDiagnosisBusy(kind);
+    try {
+      const result =
+        kind === 'hotel'
+          ? await cloudApi.diagnose<HotelCompatibilityDiagnosis>(
+              'hotel',
+              record,
+              preference,
+            )
+          : kind === 'itinerary'
+            ? await cloudApi.diagnose<TravelDiagnosis>(
+                'itinerary',
+                record,
+                preference,
+              )
+            : await cloudApi.diagnose<RiskDiagnosis>('risk', record, preference);
+      setDiagnoses((current) => ({
+        ...current,
+        [record.id]: {
+          ...current[record.id],
+          [kind]: result,
+          updatedAt: new Date().toISOString(),
+        },
+      }));
+      setDiagnosisMessage('AWS BedrockによるAI診断が完了しました');
+    } catch (error) {
+      setDiagnosisMessage(errorMessage(error));
+    } finally {
+      setDiagnosisBusy(null);
+    }
+  }
+
+  async function deleteTripRecord(record: TripRecord) {
+    setDeletingTripId(record.id);
+    try {
+      if (authUserEmail) await cloudApi.deleteTrip(record.id);
+      setTrips((items) => items.filter((item) => item.id !== record.id));
+      setDiagnoses((current) => {
+        const next = { ...current };
+        delete next[record.id];
+        return next;
+      });
+      if (selectedTripId === record.id) startNewTrip();
+      if (riskDetailTripId === record.id) setRiskDetailTripId(null);
+      if (detailTripId === record.id) setDetailTripId(null);
+      setPendingDeleteTripId(null);
+      setSaveState(`${record.travel.name}を削除しました`);
+    } catch (error) {
+      setSaveState(errorMessage(error));
+    } finally {
+      setDeletingTripId(null);
+    }
   }
 
   return (
@@ -1466,6 +1530,34 @@ export default function Home() {
                                 <ShieldAlert className="size-4" />
                                 リスク診断
                               </Button>
+                              {pendingDeleteTripId === trip.id ? (
+                                <>
+                                  <Button
+                                    disabled={deletingTripId === trip.id}
+                                    onClick={() => void deleteTripRecord(trip)}
+                                    variant="destructive"
+                                  >
+                                    <Trash2 className="size-4" />
+                                    {deletingTripId === trip.id ? '削除中...' : '削除する'}
+                                  </Button>
+                                  <Button
+                                    disabled={deletingTripId === trip.id}
+                                    onClick={() => setPendingDeleteTripId(null)}
+                                    variant="outline"
+                                  >
+                                    キャンセル
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  aria-label={`${trip.travel.name}を削除`}
+                                  onClick={() => setPendingDeleteTripId(trip.id)}
+                                  variant="outline"
+                                >
+                                  <Trash2 className="size-4" />
+                                  削除
+                                </Button>
+                              )}
                             </div>
                           </div>
                         );
@@ -1947,6 +2039,7 @@ export default function Home() {
                       <div className="min-w-0 space-y-1">
                         <FieldLabel>出発日</FieldLabel>
                         <Input
+                          max={travel.endDate || undefined}
                           type="date"
                           value={travel.startDate}
                           onChange={(event) =>
@@ -1960,6 +2053,7 @@ export default function Home() {
                       <div className="min-w-0 space-y-1">
                         <FieldLabel>帰宅日</FieldLabel>
                         <Input
+                          min={travel.startDate || undefined}
                           type="date"
                           value={travel.endDate}
                           onChange={(event) =>
@@ -2026,6 +2120,7 @@ export default function Home() {
                         <FieldLabel>旅行予算</FieldLabel>
                         <Input
                           className="px-2"
+                          min="0"
                           type="number"
                           value={travel.budget}
                           onChange={(event) =>
@@ -2047,6 +2142,17 @@ export default function Home() {
                         }
                       />
                     </div>
+
+                    {validationErrors.length > 0 && (
+                      <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+                        <p className="font-semibold">入力内容を確認してください</p>
+                        <ul className="mt-2 space-y-1">
+                          {validationErrors.map((error) => (
+                            <li key={error}>・{error}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Button
                         className="bg-teal-800 hover:bg-teal-700"
@@ -2061,10 +2167,6 @@ export default function Home() {
                       >
                         <Bed className="size-4" />
                         宿を入力する
-                      </Button>
-                      <Button variant="outline" onClick={resetDemo}>
-                        <RotateCcw className="size-4" />
-                        モック旅行に戻す
                       </Button>
                     </div>
                   </CardContent>
@@ -2082,11 +2184,38 @@ export default function Home() {
                       <p className="text-sm text-slate-700">
                         採用したい改善案を1つ選択してください。選択した案だけ旅程に反映されます。
                       </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          disabled={diagnosisBusy === 'itinerary'}
+                          onClick={() => runAiDiagnosis('itinerary')}
+                          variant="outline"
+                        >
+                          <Sparkles className="size-4" />
+                          {diagnosisBusy === 'itinerary'
+                            ? 'AI診断中...'
+                            : 'Bedrockで改善案を更新'}
+                        </Button>
+                        {diagnoses[currentTripId]?.itinerary && (
+                          <Badge className="bg-emerald-100 text-emerald-800">
+                            AI診断済み
+                          </Badge>
+                        )}
+                      </div>
+                      {diagnosisMessage && (
+                        <p className="rounded-lg bg-white/80 p-3 text-sm text-slate-700">
+                          {diagnosisMessage}
+                        </p>
+                      )}
                       <div className="grid gap-2 text-sm text-slate-700">
-                        {itineraryImprovementOptions.map((option) => {
+                        {itineraryImprovementOptions.length === 0 ? (
+                          <p className="rounded-lg border border-teal-100 bg-white/70 p-3">
+                            現在の旅程から自動適用できる改善案は見つかりませんでした。
+                          </p>
+                        ) : itineraryImprovementOptions.map((option) => {
                           const isChecked = selectedImprovementId === option.id;
                           return (
                             <label
+                              aria-label={option.title}
                               className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${
                                 isChecked
                                   ? 'border-teal-600 bg-white shadow-sm'
@@ -2154,7 +2283,7 @@ export default function Home() {
                     {itinerary.map((item) => (
                       <div
                         key={item.id}
-                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1.7fr)_120px_minmax(220px,1.1fr)_auto]"
+                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(190px,1.5fr)_132px_100px_minmax(220px,1.1fr)_auto]"
                       >
                         <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                           <FieldLabel>タイトル</FieldLabel>
@@ -2163,6 +2292,19 @@ export default function Home() {
                             value={item.title}
                             onChange={(event) =>
                               updateItinerary(item.id, { title: event.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <FieldLabel>日付</FieldLabel>
+                          <Input
+                            aria-label={`${item.title}日付`}
+                            max={travel.endDate || undefined}
+                            min={travel.startDate || undefined}
+                            type="date"
+                            value={item.date}
+                            onChange={(event) =>
+                              updateItinerary(item.id, { date: event.target.value })
                             }
                           />
                         </div>
@@ -2301,6 +2443,7 @@ export default function Home() {
                       <div className="space-y-1.5">
                         <FieldLabel>宿泊料金</FieldLabel>
                         <Input
+                          min="0"
                           type="number"
                           value={accommodation.price}
                           onChange={(event) =>
@@ -2384,6 +2527,27 @@ export default function Home() {
                         />
                       </div>
                     </div>
+                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-100 bg-teal-50/70 p-3">
+                      <Button
+                        disabled={diagnosisBusy === 'hotel'}
+                        onClick={() => void runAiDiagnosis('hotel')}
+                      >
+                        <Sparkles className="size-4" />
+                        {diagnosisBusy === 'hotel' ? 'AI診断中...' : 'Bedrockで宿を診断'}
+                      </Button>
+                      <Badge
+                        className={
+                          diagnoses[currentTripId]?.hotel
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-white text-slate-600'
+                        }
+                      >
+                        {diagnoses[currentTripId]?.hotel ? 'AI診断済み' : '参考診断'}
+                      </Badge>
+                      {diagnosisMessage && (
+                        <p className="w-full text-sm text-slate-700">{diagnosisMessage}</p>
+                      )}
+                    </div>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {Object.entries(hotelDiagnosis.categoryScores).map(
                         ([label, value]) => (
@@ -2439,7 +2603,8 @@ export default function Home() {
                       </div>
                     ) : (
                       trips.map((trip) => {
-                        const tripRisk = buildContextualRisk(trip);
+                        const tripRisk =
+                          diagnoses[trip.id]?.risk ?? buildContextualRisk(trip);
                         const tone = riskTone(tripRisk.riskPercent);
                         const isOpen = riskDetailTrip?.id === trip.id;
                         return (
@@ -2457,6 +2622,9 @@ export default function Home() {
                                   {trip.travel.name}
                                 </p>
                                 <Badge className={tone.badge}>{tone.label}</Badge>
+                                <Badge variant="outline">
+                                  {diagnoses[trip.id]?.risk ? 'AI診断済み' : '参考診断'}
+                                </Badge>
                                 {isOpen && (
                                   <Badge className="bg-emerald-900 text-white">
                                     詳細表示中
@@ -2508,17 +2676,36 @@ export default function Home() {
                     <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                       <CardHeader>
                         <CardTitle className="flex flex-wrap items-center justify-between gap-3">
-                          <span>{riskDetailTrip.travel.name}のリスク詳細</span>
-                          <Button
-                            onClick={() => editTrip(riskDetailTrip)}
-                            variant="outline"
-                          >
-                            <Pencil className="size-4" />
-                            この旅行の旅程を編集
-                          </Button>
+                          <span className="flex flex-wrap items-center gap-2">
+                            {riskDetailTrip.travel.name}のリスク詳細
+                            <Badge variant="outline">
+                              {diagnoses[riskDetailTrip.id]?.risk ? 'AI診断済み' : '参考診断'}
+                            </Badge>
+                          </span>
+                          <span className="flex flex-wrap gap-2">
+                            <Button
+                              disabled={diagnosisBusy === 'risk'}
+                              onClick={() => void runAiDiagnosis('risk', riskDetailTrip)}
+                            >
+                              <Sparkles className="size-4" />
+                              {diagnosisBusy === 'risk' ? 'AI診断中...' : 'Bedrockで診断'}
+                            </Button>
+                            <Button
+                              onClick={() => editTrip(riskDetailTrip)}
+                              variant="outline"
+                            >
+                              <Pencil className="size-4" />
+                              この旅行の旅程を編集
+                            </Button>
+                          </span>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-5">
+                        {diagnosisMessage && (
+                          <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                            {diagnosisMessage}
+                          </p>
+                        )}
                         <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
                           <div className="rounded-lg bg-slate-950 p-4 text-white">
                             <p className="text-sm text-slate-300">

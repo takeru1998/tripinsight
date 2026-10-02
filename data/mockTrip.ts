@@ -49,6 +49,7 @@ export const mockAccommodation: Accommodation = {
 export const mockItinerary: ItineraryItem[] = [
   {
     id: 'i1',
+    date: '2026-09-16',
     title: '東京駅出発',
     place: '東京駅',
     start: '08:00',
@@ -60,6 +61,7 @@ export const mockItinerary: ItineraryItem[] = [
   },
   {
     id: 'i2',
+    date: '2026-09-16',
     title: '越後湯沢駅で昼食',
     place: '越後湯沢駅',
     start: '11:30',
@@ -70,6 +72,7 @@ export const mockItinerary: ItineraryItem[] = [
   },
   {
     id: 'i3',
+    date: '2026-09-16',
     title: '清津峡',
     place: '清津峡渓谷トンネル',
     start: '13:00',
@@ -80,6 +83,7 @@ export const mockItinerary: ItineraryItem[] = [
   },
   {
     id: 'i4',
+    date: '2026-09-16',
     title: '温泉街カフェ',
     place: '越後湯沢温泉街',
     start: '15:30',
@@ -90,6 +94,7 @@ export const mockItinerary: ItineraryItem[] = [
   },
   {
     id: 'i5',
+    date: '2026-09-16',
     title: '旅館チェックイン',
     place: '雪見の湯 里山別邸',
     start: '17:00',
