@@ -2917,36 +2917,6 @@ export default function Home() {
 
             <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
               <CardHeader>
-                <CardTitle>予定された旅行</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {trips.length === 0 ? (
-                  <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
-                    保存された旅行はまだありません。
-                  </p>
-                ) : (
-                  trips.slice(0, 3).map((trip) => (
-                    <button
-                      key={trip.id}
-                      className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left text-sm hover:bg-slate-50"
-                      onClick={() => editTrip(trip)}
-                      type="button"
-                    >
-                      <span>
-                        <span className="block font-medium">{trip.travel.name}</span>
-                        <span className="block text-xs text-slate-500">
-                          {trip.travel.startDate || '日程未設定'}
-                        </span>
-                      </span>
-                      <ChevronRight className="size-4 text-slate-400" />
-                    </button>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
-              <CardHeader>
                 <CardTitle>システム連携</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-slate-600">
