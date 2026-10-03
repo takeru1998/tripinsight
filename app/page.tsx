@@ -119,6 +119,8 @@ type TripListFilter = 'all' | 'attention' | 'missing';
 type TripListSort = 'date' | 'risk';
 type AuthMode = 'signin' | 'signup' | 'confirm';
 type DiagnosisKind = 'hotel' | 'itinerary' | 'risk';
+type HotelView = 'list' | 'form' | 'detail';
+type HotelFormMode = 'new' | 'edit';
 type TripDiagnosisSet = {
   hotel?: HotelCompatibilityDiagnosis;
   itinerary?: TravelDiagnosis;
@@ -595,6 +597,8 @@ function errorMessage(error: unknown) {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('ホーム');
+  const [hotelView, setHotelView] = useState<HotelView>('list');
+  const [hotelFormMode, setHotelFormMode] = useState<HotelFormMode>('new');
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [preference, setPreference] =
     useState<UserTravelPreference>(mockPreference);
@@ -620,6 +624,7 @@ export default function Home() {
   const [diagnosisMessage, setDiagnosisMessage] = useState('');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [pendingDeleteTripId, setPendingDeleteTripId] = useState<string | null>(null);
+  const [pendingDeleteHotelId, setPendingDeleteHotelId] = useState<string | null>(null);
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState('端末内に自動保存');
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
@@ -787,6 +792,18 @@ export default function Home() {
   const pendingDeleteTrip = useMemo(
     () => trips.find((trip) => trip.id === pendingDeleteTripId) ?? null,
     [trips, pendingDeleteTripId],
+  );
+  const registeredHotels = useMemo(
+    () => trips.filter((trip) => trip.accommodation.name.trim()),
+    [trips],
+  );
+  const hotelRegistrationTargets = useMemo(
+    () => trips.filter((trip) => !trip.accommodation.name.trim()),
+    [trips],
+  );
+  const pendingDeleteHotel = useMemo(
+    () => trips.find((trip) => trip.id === pendingDeleteHotelId) ?? null,
+    [trips, pendingDeleteHotelId],
   );
   const detailTrip = useMemo(
     () =>
@@ -1073,6 +1090,88 @@ export default function Home() {
     setDiagnosisMessage('');
     setActiveTab('旅行登録');
     setSaveState(`${record.travel.name}を表示中`);
+  }
+
+  function loadHotelTrip(record: TripRecord, nextAccommodation: Accommodation) {
+    setTravel(record.travel);
+    setAccommodation(nextAccommodation);
+    setItinerary(record.itinerary);
+    setReview(record.review);
+    setSelectedTripId(record.id);
+    setDetailTripId(record.id);
+    setValidationErrors([]);
+    setDiagnosisMessage('');
+  }
+
+  function openNewHotelForm(record?: TripRecord) {
+    const target =
+      record ??
+      hotelRegistrationTargets.find((trip) => trip.id === selectedTripId) ??
+      hotelRegistrationTargets[0];
+    if (!target) {
+      if (trips.length === 0) {
+        startNewTrip();
+        setSaveState('宿を登録する旅行を先に入力してください');
+      } else {
+        setSaveState('すべての旅行に宿が登録済みです。宿の編集を使用してください');
+      }
+      return;
+    }
+    loadHotelTrip(target, emptyAccommodation);
+    setHotelFormMode('new');
+    setHotelView('form');
+    setActiveTab('宿診断');
+    setSaveState(`${target.travel.name}の宿を新規登録中`);
+  }
+
+  function openHotelFormFromTravel() {
+    setHotelFormMode(accommodation.name.trim() ? 'edit' : 'new');
+    setHotelView('form');
+    setActiveTab('宿診断');
+  }
+
+  function editHotel(record: TripRecord) {
+    loadHotelTrip(record, record.accommodation);
+    setHotelFormMode('edit');
+    setHotelView('form');
+    setActiveTab('宿診断');
+    setSaveState(`${record.accommodation.name}を編集中`);
+  }
+
+  function openHotelDetail(record: TripRecord) {
+    loadHotelTrip(record, record.accommodation);
+    setHotelView('detail');
+    setActiveTab('宿診断');
+    setSaveState(`${record.accommodation.name}の詳細を表示中`);
+  }
+
+  function saveHotel() {
+    if (!accommodation.name.trim()) {
+      setValidationErrors(['宿泊施設名を入力してください']);
+      setSaveState('入力内容を確認してください');
+      return;
+    }
+    if (saveCurrentTrip()) setHotelView('list');
+  }
+
+  async function deleteHotel(record: TripRecord) {
+    const updatedRecord = { ...record, accommodation: emptyAccommodation };
+    try {
+      if (authUserEmail) await cloudApi.saveTrip(updatedRecord);
+      setTrips((items) =>
+        items.map((item) => (item.id === record.id ? updatedRecord : item)),
+      );
+      setDiagnoses((current) => ({
+        ...current,
+        [record.id]: { ...current[record.id], hotel: undefined },
+      }));
+      if (selectedTripId === record.id) setAccommodation(emptyAccommodation);
+      setPendingDeleteHotelId(null);
+      setHotelView('list');
+      setSaveState(`${record.accommodation.name}を削除しました`);
+    } catch (error) {
+      setSaveState(errorMessage(error));
+    }
   }
 
   function scrollToRiskDetail() {
@@ -1430,6 +1529,7 @@ export default function Home() {
                     : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-900'
                 }`}
                 onClick={() => {
+                  if (tab === '宿診断') setHotelView('list');
                   setActiveTab(tab);
                   setIsHeaderMenuOpen(false);
                 }}
@@ -2217,7 +2317,7 @@ export default function Home() {
                       </Button>
                       <Button
                         className="bg-emerald-900 hover:bg-emerald-800"
-                        onClick={() => setActiveTab('宿診断')}
+                        onClick={openHotelFormFromTravel}
                       >
                         <Bed className="size-4" />
                         宿を入力する
@@ -2473,16 +2573,159 @@ export default function Home() {
 
             {activeTab === '宿診断' && (
               <div className="grid gap-4">
+                {hotelView === 'list' && (
+                  <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                    <CardHeader className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <CardTitle>登録された宿</CardTitle>
+                        <Badge variant="outline">{registeredHotels.length}件</Badge>
+                      </div>
+                      <div>
+                        <Button onClick={() => openNewHotelForm()}>
+                          <Plus className="size-4" />
+                          新規登録
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {registeredHotels.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                          登録された宿はまだありません。新規登録から対象の旅行に宿を追加できます。
+                        </div>
+                      ) : (
+                        registeredHotels.map((record) => (
+                          <div
+                            className="grid gap-3 rounded-lg border border-slate-200 bg-[#fcfdfc] p-4 sm:grid-cols-[1fr_auto]"
+                            key={record.id}
+                          >
+                            <div className="space-y-1">
+                              <p className="font-semibold text-slate-900">
+                                {record.accommodation.name}
+                              </p>
+                              <p className="text-sm text-slate-600">
+                                {record.accommodation.location || '所在地未設定'}
+                              </p>
+                              <p className="flex items-center gap-1.5 text-xs font-medium text-emerald-800">
+                                <Route className="size-3.5" />
+                                対象の旅行: {record.travel.name}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2 self-center sm:justify-end">
+                              <Button onClick={() => openHotelDetail(record)} variant="outline">
+                                <Eye className="size-4" />
+                                詳細
+                              </Button>
+                              <Button onClick={() => editHotel(record)} variant="outline">
+                                <Pencil className="size-4" />
+                                編集
+                              </Button>
+                              <Button
+                                aria-label={`${record.accommodation.name}を削除`}
+                                className="text-rose-700 hover:text-rose-800"
+                                onClick={() => setPendingDeleteHotelId(record.id)}
+                                variant="outline"
+                              >
+                                <Trash2 className="size-4" />
+                                削除
+                              </Button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {hotelView === 'detail' && (
+                  <>
+                    <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="flex flex-wrap items-center justify-between gap-3">
+                          <span>{accommodation.name}の詳細</span>
+                          <div className="flex flex-wrap gap-2">
+                            <Button onClick={() => setHotelView('list')} variant="outline">
+                              <RotateCcw className="size-4" />
+                              戻る
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                const record = trips.find((item) => item.id === selectedTripId);
+                                if (record) editHotel(record);
+                              }}
+                              variant="outline"
+                            >
+                              <Pencil className="size-4" />
+                              編集
+                            </Button>
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+                        <div><p className="text-xs text-slate-500">対象の旅行</p><p className="font-medium">{travel.name}</p></div>
+                        <div><p className="text-xs text-slate-500">所在地</p><p className="font-medium">{accommodation.location || '未設定'}</p></div>
+                        <div><p className="text-xs text-slate-500">宿泊料金</p><p className="font-medium">¥{currency(accommodation.price)}</p></div>
+                        <div><p className="text-xs text-slate-500">宿URL</p><p className="break-all font-medium">{accommodation.url || '未設定'}</p></div>
+                        <div><p className="text-xs text-slate-500">チェックイン / アウト</p><p className="font-medium">{accommodation.checkIn || '未設定'} / {accommodation.checkOut || '未設定'}</p></div>
+                        <div><p className="text-xs text-slate-500">夕食 / 朝食</p><p className="font-medium">{accommodation.dinner || '未設定'} / {accommodation.breakfast || '未設定'}</p></div>
+                        <div className="sm:col-span-2"><p className="text-xs text-slate-500">捕捉情報</p><p className="mt-1 whitespace-pre-wrap font-medium">{accommodation.note || '未設定'}</p></div>
+                      </CardContent>
+                    </Card>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
+                        <CardHeader><CardTitle>この宿が向いている理由</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                          {hotelDiagnosis.reasons.map((reason) => <p className="text-sm text-slate-700" key={reason}>{reason}</p>)}
+                        </CardContent>
+                      </Card>
+                      <Card className="rounded-lg border-rose-200 bg-rose-50 shadow-sm">
+                        <CardHeader><CardTitle>注意すべきポイント</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                          {hotelDiagnosis.regretPoints.map((point) => <p className="text-sm text-rose-950" key={point}>{point}</p>)}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </>
+                )}
+
+                {hotelView === 'form' && (
+                <>
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
                     <CardTitle className="flex flex-wrap items-center justify-between gap-2">
-                      <span>宿泊先AI診断</span>
-                      <Badge variant="outline">
-                        対象: {travel.name || '未保存の旅行'}
-                      </Badge>
+                      <span>{hotelFormMode === 'new' ? '宿を新規登録' : '宿を編集'}</span>
+                      <Button onClick={() => setHotelView('list')} variant="outline">
+                        <RotateCcw className="size-4" />
+                        戻る
+                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div className="max-w-sm space-y-1.5">
+                      <FieldLabel>対象の旅行</FieldLabel>
+                      {selectedTripId ? (
+                      <select
+                        aria-label="対象の旅行"
+                        className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        disabled={hotelFormMode === 'edit'}
+                        value={selectedTripId ?? ''}
+                        onChange={(event) => {
+                          const record = trips.find((item) => item.id === event.target.value);
+                          if (record) loadHotelTrip(record, emptyAccommodation);
+                        }}
+                      >
+                        {(hotelFormMode === 'edit'
+                          ? trips.filter((record) => record.id === selectedTripId)
+                          : hotelRegistrationTargets
+                        ).map((record) => (
+                          <option key={record.id} value={record.id}>{record.travel.name}</option>
+                        ))}
+                      </select>
+                      ) : (
+                        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700">
+                          {travel.name || '未保存の旅行'}
+                        </div>
+                      )}
+                    </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <FieldLabel>宿泊施設名</FieldLabel>
@@ -2593,6 +2836,17 @@ export default function Home() {
                         />
                       </div>
                     </div>
+                    {validationErrors.length > 0 && (
+                      <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
+                        {validationErrors.map((error) => <p key={error}>・{error}</p>)}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <Button className="bg-teal-800 hover:bg-teal-700" onClick={saveHotel}>
+                        <Save className="size-4" />
+                        保存
+                      </Button>
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-100 bg-teal-50/70 p-3">
                       <Button
                         disabled={diagnosisBusy === 'hotel'}
@@ -2650,6 +2904,8 @@ export default function Home() {
                     </CardContent>
                   </Card>
                 </div>
+                </>
+                )}
               </div>
             )}
 
@@ -2976,6 +3232,34 @@ export default function Home() {
             >
               <Trash2 className="size-4" />
               {deletingTripId ? '削除中...' : '削除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteHotelId(null);
+        }}
+        open={Boolean(pendingDeleteHotel)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>この宿を削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{pendingDeleteHotel?.accommodation.name}」の宿情報と宿診断結果を削除します。対象の旅行や旅程は残ります。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!pendingDeleteHotel}
+              onClick={() => {
+                if (pendingDeleteHotel) void deleteHotel(pendingDeleteHotel);
+              }}
+              variant="destructive"
+            >
+              <Trash2 className="size-4" />
+              削除
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
