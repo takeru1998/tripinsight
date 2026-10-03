@@ -1333,8 +1333,9 @@ export default function Home() {
 
   return (
     <main className="trip-app min-h-dvh bg-[var(--app-bg)] text-slate-900">
-      <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-4 pt-[env(safe-area-inset-top)] sm:px-6 sm:pt-4 lg:px-8">
-        <header className="sticky top-0 z-20 -mx-4 border-b border-emerald-950/8 bg-[#fbfdfc]/90 px-4 py-3 shadow-[0_8px_30px_rgb(15_23_42/5%)] backdrop-blur-xl sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-4 pt-[calc(env(safe-area-inset-top)+5.75rem)] sm:px-6 lg:px-8">
+        <header className="fixed inset-x-0 top-0 z-50 border-b border-emerald-950/8 bg-[#fbfdfc]/98 pt-[env(safe-area-inset-top)] shadow-[0_8px_30px_rgb(15_23_42/7%)] backdrop-blur-xl">
+          <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3">
             <div className="relative flex min-w-0 items-center gap-2 sm:gap-3">
               <button
@@ -1398,10 +1399,11 @@ export default function Home() {
               <span className="hidden sm:inline">新しい旅行を診断</span>
             </Button>
           </div>
-          <p className="mt-2 flex items-center gap-2 text-[11px] font-medium text-slate-400">
-            <span className="size-1.5 rounded-full bg-teal-500 shadow-[0_0_0_3px_rgb(20_184_166/10%)]" />
-            {saveState}
+          <p className="mt-2 flex min-w-0 items-center gap-2 overflow-hidden text-[11px] font-medium text-slate-400">
+            <span className="size-1.5 shrink-0 rounded-full bg-teal-500 shadow-[0_0_0_3px_rgb(20_184_166/10%)]" />
+            <span className="truncate">{saveState}</span>
           </p>
+          </div>
         </header>
 
         {activeTab === 'ホーム' && (
@@ -1514,7 +1516,7 @@ export default function Home() {
 
         <nav
           aria-label="メインメニュー"
-          className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-4 rounded-lg border border-emerald-950/10 bg-[#fbfdfc]/95 px-1 py-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_14px_40px_rgb(15_23_42/18%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-1 sm:border-emerald-950/8 sm:bg-white/80 sm:px-2 sm:py-2 sm:shadow-sm"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 rounded-t-lg border-x-0 border-b-0 border-t border-emerald-950/10 bg-[#fbfdfc]/98 px-1 py-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgb(15_23_42/12%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-1 sm:rounded-lg sm:border sm:border-emerald-950/8 sm:bg-white/80 sm:px-2 sm:py-2 sm:shadow-sm"
         >
           {tabs.map((tab) => {
             const TabIcon = tabIcons[tab];
