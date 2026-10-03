@@ -52,6 +52,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { mockPreference } from '@/data/mockTrip';
 import {
   buildDynamicImprovements,
+  formatMinutes,
   isCurrentOrFutureTrip,
   normalizeItineraryDates,
   toMinutes,
@@ -601,8 +602,8 @@ export default function Home() {
   const [previousItinerary, setPreviousItinerary] = useState<
     ItineraryItem[] | null
   >(null);
-  const [selectedImprovementId, setSelectedImprovementId] =
-    useState<string | null>(null);
+  const [selectedImprovementIds, setSelectedImprovementIds] = useState<string[]>([]);
+  const [improvementMinutes, setImprovementMinutes] = useState<Record<string, number>>({});
   const [diagnoses, setDiagnoses] = useState<DiagnosisMap>({});
   const [diagnosisBusy, setDiagnosisBusy] = useState<DiagnosisKind | null>(null);
   const [diagnosisMessage, setDiagnosisMessage] = useState('');
@@ -721,21 +722,47 @@ export default function Home() {
   const itineraryImprovementOptions = useMemo<ItineraryImprovementOption[]>(() => {
     const aiOptions = (itineraryDiagnosis.improvements ?? [])
       .filter((option) => itinerary.some((item) => item.id === option.targetItemId))
-      .map((option) => ({
-        id: option.id,
-        title: option.title,
-        detail: option.detail,
-        apply: (items: ItineraryItem[]) =>
-          items.map((item) =>
-            item.id === option.targetItemId
-              ? {
-                  ...item,
-                  ...(option.start ? { start: option.start } : {}),
-                  ...(option.end ? { end: option.end } : {}),
-                }
-              : item,
-          ),
-      }));
+      .map((option) => {
+        const target = itinerary.find((item) => item.id === option.targetItemId)!;
+        const startDelta = option.start
+          ? toMinutes(option.start) - toMinutes(target.start)
+          : 0;
+        const endDelta = option.end
+          ? toMinutes(option.end) - toMinutes(target.end)
+          : 0;
+        const defaultMinutes = Math.max(5, Math.abs(startDelta), Math.abs(endDelta));
+        return {
+          id: option.id,
+          title: option.title,
+          detail: option.detail,
+          defaultMinutes,
+          minuteLabel: '調整時間',
+          apply: (items: ItineraryItem[], minutes: number) => {
+            const ratio = Math.max(5, Math.min(180, minutes)) / defaultMinutes;
+            return items.map((item) =>
+              item.id === option.targetItemId
+                ? {
+                    ...item,
+                    ...(option.start
+                      ? {
+                          start: formatMinutes(
+                            toMinutes(item.start) + Math.round((startDelta * ratio) / 5) * 5,
+                          ),
+                        }
+                      : {}),
+                    ...(option.end
+                      ? {
+                          end: formatMinutes(
+                            toMinutes(item.end) + Math.round((endDelta * ratio) / 5) * 5,
+                          ),
+                        }
+                      : {}),
+                  }
+                : item,
+            );
+          },
+        };
+      });
     return aiOptions.length
       ? aiOptions
       : buildDynamicImprovements(itinerary, accommodation);
@@ -996,7 +1023,8 @@ export default function Home() {
     setDetailTripId(null);
     setRiskPlanTripId(null);
     setPreviousItinerary(null);
-    setSelectedImprovementId(null);
+    setSelectedImprovementIds([]);
+    setImprovementMinutes({});
     setValidationErrors([]);
     setDiagnosisMessage('');
     setActiveTab('旅行登録');
@@ -1049,7 +1077,8 @@ export default function Home() {
     setSelectedTripId(record.id);
     setDetailTripId(record.id);
     setPreviousItinerary(null);
-    setSelectedImprovementId(null);
+    setSelectedImprovementIds([]);
+    setImprovementMinutes({});
     setValidationErrors([]);
     setDiagnosisMessage('');
     setActiveTab('旅行登録');
@@ -1087,7 +1116,8 @@ export default function Home() {
     setDetailTripId(record.id);
     setDetailReturnTab(returnTab);
     setPreviousItinerary(null);
-    setSelectedImprovementId(null);
+    setSelectedImprovementIds([]);
+    setImprovementMinutes({});
     setActiveTab('旅行詳細');
     setSaveState(`${record.travel.name}の詳細を表示中`);
   }
@@ -1098,21 +1128,33 @@ export default function Home() {
   }
 
   function applyImprovement() {
-    const selectedImprovement = itineraryImprovementOptions.find(
-      (option) => option.id === selectedImprovementId,
+    const selectedImprovements = itineraryImprovementOptions.filter((option) =>
+      selectedImprovementIds.includes(option.id),
     );
-    if (!selectedImprovement) return;
+    if (selectedImprovements.length === 0) return;
 
     setPreviousItinerary(itinerary);
-    setItinerary(selectedImprovement.apply(itinerary));
-    setSaveState('改善案を反映しました。保存すると旅行一覧へ反映されます');
+    setItinerary(
+      selectedImprovements.reduce(
+        (items, option) =>
+          option.apply(
+            items,
+            improvementMinutes[option.id] ?? option.defaultMinutes,
+          ),
+        itinerary,
+      ),
+    );
+    setSaveState(
+      `${selectedImprovements.length}件の改善案を反映しました。保存すると旅行一覧へ反映されます`,
+    );
   }
 
   function undoImprovement() {
     if (!previousItinerary) return;
     setItinerary(previousItinerary);
     setPreviousItinerary(null);
-    setSelectedImprovementId(null);
+    setSelectedImprovementIds([]);
+    setImprovementMinutes({});
     setSaveState('改善前の旅程へ戻しました');
   }
 
@@ -1168,7 +1210,7 @@ export default function Home() {
           updatedAt: new Date().toISOString(),
         },
       }));
-      setDiagnosisMessage('AWS BedrockによるAI診断が完了しました');
+      setDiagnosisMessage('AI診断が完了しました');
     } catch (error) {
       setDiagnosisMessage(errorMessage(error));
     } finally {
@@ -1193,7 +1235,8 @@ export default function Home() {
         setReview(emptyReview);
         setSelectedTripId(null);
         setPreviousItinerary(null);
-        setSelectedImprovementId(null);
+        setSelectedImprovementIds([]);
+        setImprovementMinutes({});
       }
       if (riskDetailTripId === record.id) setRiskDetailTripId(null);
       if (detailTripId === record.id) setDetailTripId(null);
@@ -2222,7 +2265,7 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <p className="text-sm text-slate-700">
-                        採用したい改善案を1つ選択してください。選択した案だけ旅程に反映されます。
+                        改善案は複数選択できます。時間を調整し、選択した案をまとめて旅程に反映できます。
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <Button
@@ -2233,7 +2276,7 @@ export default function Home() {
                           <Sparkles className="size-4" />
                           {diagnosisBusy === 'itinerary'
                             ? 'AI診断中...'
-                            : 'Bedrockで改善案を更新'}
+                            : 'AIで改善案を更新'}
                         </Button>
                         {diagnoses[currentTripId]?.itinerary && (
                           <Badge className="bg-emerald-100 text-emerald-800">
@@ -2252,44 +2295,72 @@ export default function Home() {
                             現在の旅程から自動適用できる改善案は見つかりませんでした。
                           </p>
                         ) : itineraryImprovementOptions.map((option) => {
-                          const isChecked = selectedImprovementId === option.id;
+                          const isChecked = selectedImprovementIds.includes(option.id);
+                          const minutes =
+                            improvementMinutes[option.id] ?? option.defaultMinutes;
                           return (
-                            <label
-                              aria-label={option.title}
-                              className={`flex cursor-pointer gap-3 rounded-lg border p-3 transition ${
+                            <div
+                              className={`rounded-lg border p-3 transition ${
                                 isChecked
                                   ? 'border-teal-600 bg-white shadow-sm'
                                   : 'border-teal-100 bg-teal-50/60 hover:bg-white'
                               }`}
                               key={option.id}
                             >
-                              <input
-                                checked={isChecked}
-                                className="mt-1 size-4 accent-teal-700"
-                                name="itinerary-improvement"
-                                onChange={() => setSelectedImprovementId(option.id)}
-                                type="radio"
-                              />
-                              <span className="space-y-0.5">
-                                <span className="block font-medium text-slate-900">
-                                  {option.title}
+                              <label className="flex cursor-pointer gap-3">
+                                <input
+                                  aria-label={option.title}
+                                  checked={isChecked}
+                                  className="mt-1 size-4 accent-teal-700"
+                                  onChange={() =>
+                                    setSelectedImprovementIds((current) =>
+                                      current.includes(option.id)
+                                        ? current.filter((id) => id !== option.id)
+                                        : [...current, option.id],
+                                    )
+                                  }
+                                  type="checkbox"
+                                />
+                                <span className="space-y-0.5">
+                                  <span className="block font-medium text-slate-900">
+                                    {option.title}
+                                  </span>
+                                  <span className="block text-slate-600">
+                                    {option.detail}
+                                  </span>
                                 </span>
-                                <span className="block text-slate-600">
-                                  {option.detail}
-                                </span>
-                              </span>
-                            </label>
+                              </label>
+                              <div className="mt-3 flex items-center gap-2 pl-7">
+                                <FieldLabel>{option.minuteLabel}</FieldLabel>
+                                <Input
+                                  aria-label={`${option.title}の${option.minuteLabel}`}
+                                  className="h-9 w-24 px-2 text-right"
+                                  max="180"
+                                  min="5"
+                                  onChange={(event) =>
+                                    setImprovementMinutes((current) => ({
+                                      ...current,
+                                      [option.id]: Number(event.target.value),
+                                    }))
+                                  }
+                                  step="5"
+                                  type="number"
+                                  value={minutes}
+                                />
+                                <span className="text-xs text-slate-500">分</span>
+                              </div>
+                            </div>
                           );
                         })}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button
                           className="bg-teal-800 hover:bg-teal-700"
-                          disabled={!selectedImprovementId}
+                          disabled={selectedImprovementIds.length === 0}
                           onClick={applyImprovement}
                         >
                           <Check className="size-4" />
-                          改善案を採用
+                          選択した改善案を採用
                         </Button>
                         <Button
                           disabled={!previousItinerary}
@@ -2578,7 +2649,7 @@ export default function Home() {
                         onClick={() => void runAiDiagnosis('hotel')}
                       >
                         <Sparkles className="size-4" />
-                        {diagnosisBusy === 'hotel' ? 'AI診断中...' : 'Bedrockで宿を診断'}
+                        {diagnosisBusy === 'hotel' ? 'AI診断中...' : 'AIで宿を診断'}
                       </Button>
                       <Badge
                         className={
@@ -2733,7 +2804,7 @@ export default function Home() {
                               onClick={() => void runAiDiagnosis('risk', riskDetailTrip)}
                             >
                               <Sparkles className="size-4" />
-                              {diagnosisBusy === 'risk' ? 'AI診断中...' : 'Bedrockで診断'}
+                              {diagnosisBusy === 'risk' ? 'AI診断中...' : 'AIで診断'}
                             </Button>
                             <Button
                               onClick={() => editTrip(riskDetailTrip)}
@@ -2921,7 +2992,7 @@ export default function Home() {
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-slate-600">
                 <p>AWS: Cognito / API Gateway / Lambda / DynamoDB / S3</p>
-                <p>AI: Amazon Bedrock / Claude Sonnet 4.5</p>
+                <p>AI: Claude Sonnet 4.5</p>
                 <p>外部情報は未連携のため、天気・交通は前日に再確認が必要です</p>
               </CardContent>
             </Card>

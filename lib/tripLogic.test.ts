@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildDynamicImprovements,
   daysUntil,
   normalizeItineraryDates,
   tripScheduleLabel,
@@ -85,4 +86,21 @@ void test('validateTripRecord rejects invalid dates and time ranges', () => {
   });
   assert.ok(errors.some((error) => error.includes('帰宅日')));
   assert.ok(errors.some((error) => error.includes('終了時間')));
+});
+
+void test('improvement minutes can be edited before applying an option', () => {
+  const longVisit = {
+    ...record.itinerary[0],
+    id: 'sight-1',
+    title: '美術館',
+    category: '観光' as const,
+    start: '10:00',
+    end: '12:00',
+  };
+  const option = buildDynamicImprovements([longVisit], record.accommodation).find(
+    (candidate) => candidate.id === 'shorten-sight-1',
+  );
+  assert.ok(option);
+  assert.equal(option.defaultMinutes, 20);
+  assert.equal(option.apply([longVisit], 35)[0].end, '11:25');
 });
