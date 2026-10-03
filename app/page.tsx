@@ -297,7 +297,7 @@ function TimeSelect({
   return (
     <select
       aria-label={label}
-      className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -715,6 +715,9 @@ export default function Home() {
   ]);
 
   const currentTripId = selectedTripId ?? travel.id;
+  const isEditingSavedTrip = Boolean(
+    selectedTripId && trips.some((trip) => trip.id === selectedTripId),
+  );
   const hotelDiagnosis = useMemo(
     () =>
       diagnoses[currentTripId]?.hotel ??
@@ -1660,7 +1663,7 @@ export default function Home() {
                             variant="outline"
                           >
                             <RotateCcw className="size-4" />
-                            元に戻す
+                            戻る
                           </Button>
                           <Button
                             onClick={() => editTrip(detailTrip)}
@@ -2220,7 +2223,7 @@ export default function Home() {
                   </CardContent>
                 </Card>
 
-                {selectedTripId && (
+                {isEditingSavedTrip && (
                   <Card className="rounded-lg border-teal-200 bg-teal-50 shadow-sm">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -2312,7 +2315,7 @@ export default function Home() {
                           variant="outline"
                         >
                           <RotateCcw className="size-4" />
-                          元に戻す
+                          戻る
                         </Button>
                       </div>
                     </CardContent>
@@ -2324,16 +2327,23 @@ export default function Home() {
                     <CardTitle>旅程</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-start gap-2">
                       <Button variant="outline" onClick={addItineraryItem}>
                         <Plus className="size-4" />
                         予定を追加
+                      </Button>
+                      <Button
+                        className="bg-teal-800 hover:bg-teal-700"
+                        onClick={saveCurrentTrip}
+                      >
+                        <Save className="size-4" />
+                        保存
                       </Button>
                     </div>
                     {itinerary.map((item) => (
                       <div
                         key={item.id}
-                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[100px_minmax(190px,1.5fr)_132px_minmax(220px,1.1fr)_auto]"
+                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[88px_minmax(220px,1.7fr)_132px_176px_auto]"
                       >
                         <div className="space-y-1.5">
                           <FieldLabel>項目</FieldLabel>
@@ -2371,7 +2381,7 @@ export default function Home() {
                             }
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-1.5">
                           <div className="space-y-1.5">
                             <FieldLabel>開始時間</FieldLabel>
                             <TimeSelect
