@@ -289,10 +289,12 @@ function TimeSelect({
   value,
   onChange,
   label,
+  placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
   label: string;
+  placeholder?: string;
 }) {
   return (
     <select
@@ -301,6 +303,7 @@ function TimeSelect({
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
+      {placeholder && <option value="">{placeholder}</option>}
       {timeOptions.map((time) => (
         <option key={time} value={time}>
           {time}
@@ -341,13 +344,13 @@ function PriorityControl({
       </div>
       <div
         aria-label={label}
-        className="grid grid-cols-4 gap-1.5"
+        className="inline-grid grid-cols-4 gap-1"
       >
         {[4, 3, 2, 1].map((level) => (
           <button
             aria-pressed={displayValue === level}
             aria-label={`優先度 ${priorityLabel(level)}`}
-            className={`h-8 rounded-md border transition ${
+            className={`h-8 w-14 rounded-md border transition ${
               level === displayValue
                 ? `${priorityColor(level)} border-transparent shadow-sm`
                 : 'border-slate-200 bg-slate-50'
@@ -2531,56 +2534,54 @@ export default function Home() {
                           }
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <FieldLabel>チェックイン時間</FieldLabel>
-                        <Input
-                          value={accommodation.checkIn}
-                          onChange={(event) =>
-                            setAccommodation({
-                              ...accommodation,
-                              checkIn: event.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <FieldLabel>チェックアウト時間</FieldLabel>
-                        <Input
-                          value={accommodation.checkOut}
-                          onChange={(event) =>
-                            setAccommodation({
-                              ...accommodation,
-                              checkOut: event.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <FieldLabel>夕食時間</FieldLabel>
-                        <Input
-                          value={accommodation.dinner}
-                          onChange={(event) =>
-                            setAccommodation({
-                              ...accommodation,
-                              dinner: event.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <FieldLabel>朝食時間</FieldLabel>
-                        <Input
-                          value={accommodation.breakfast}
-                          onChange={(event) =>
-                            setAccommodation({
-                              ...accommodation,
-                              breakfast: event.target.value,
-                            })
-                          }
-                        />
+                      <div className="flex flex-wrap gap-3 sm:col-span-2">
+                        <div className="w-[132px] space-y-1.5">
+                          <FieldLabel>チェックイン</FieldLabel>
+                          <TimeSelect
+                            label="チェックイン時間"
+                            placeholder="未設定"
+                            value={accommodation.checkIn}
+                            onChange={(value) =>
+                              setAccommodation({ ...accommodation, checkIn: value })
+                            }
+                          />
+                        </div>
+                        <div className="w-[132px] space-y-1.5">
+                          <FieldLabel>チェックアウト</FieldLabel>
+                          <TimeSelect
+                            label="チェックアウト時間"
+                            placeholder="未設定"
+                            value={accommodation.checkOut}
+                            onChange={(value) =>
+                              setAccommodation({ ...accommodation, checkOut: value })
+                            }
+                          />
+                        </div>
+                        <div className="w-[132px] space-y-1.5">
+                          <FieldLabel>夕食時間</FieldLabel>
+                          <TimeSelect
+                            label="夕食時間"
+                            placeholder="未設定"
+                            value={accommodation.dinner}
+                            onChange={(value) =>
+                              setAccommodation({ ...accommodation, dinner: value })
+                            }
+                          />
+                        </div>
+                        <div className="w-[132px] space-y-1.5">
+                          <FieldLabel>朝食時間</FieldLabel>
+                          <TimeSelect
+                            label="朝食時間"
+                            placeholder="未設定"
+                            value={accommodation.breakfast}
+                            onChange={(value) =>
+                              setAccommodation({ ...accommodation, breakfast: value })
+                            }
+                          />
+                        </div>
                       </div>
                       <div className="space-y-1.5 sm:col-span-2">
-                        <FieldLabel>ユーザーによる補足情報</FieldLabel>
+                        <FieldLabel>捕捉情報</FieldLabel>
                         <Textarea
                           value={accommodation.note}
                           onChange={(event) =>
@@ -2638,7 +2639,7 @@ export default function Home() {
                   </Card>
                   <Card className="rounded-lg border-rose-200 bg-rose-50 shadow-sm">
                     <CardHeader>
-                      <CardTitle>後悔する可能性があるポイント</CardTitle>
+                      <CardTitle>注意すべきポイント</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       {hotelDiagnosis.regretPoints.map((point) => (
