@@ -174,9 +174,36 @@ body {
     box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
   }
 
+  /* Keep the existing typeface while raising contrast across supporting copy. */
+  .trip-app .text-slate-300 {
+    color: #64748b;
+  }
+
+  .trip-app .text-slate-400 {
+    color: #475569;
+  }
+
+  .trip-app .text-slate-500 {
+    color: #334155;
+  }
+
+  .trip-app .text-slate-600 {
+    color: #273449;
+  }
+
+  .trip-app .text-emerald-100\/80 {
+    color: rgb(236 253 245 / 0.96);
+  }
+
+  .trip-app [data-slot='card-description'],
+  .trip-app [data-slot='alert-dialog-description'] {
+    color: #334155;
+  }
+
   .trip-app input,
   .trip-app textarea,
   .trip-app select {
+    color: #172033;
     background-color: rgb(255 255 255 / 0.86);
     border-color: rgb(15 118 110 / 0.18);
     box-shadow:
@@ -186,6 +213,12 @@ body {
       border-color 160ms ease,
       box-shadow 160ms ease,
       background-color 160ms ease;
+  }
+
+  .trip-app input::placeholder,
+  .trip-app textarea::placeholder {
+    color: #526174;
+    opacity: 1;
   }
 
   .trip-app input:focus,
