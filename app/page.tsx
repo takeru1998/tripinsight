@@ -312,14 +312,13 @@ function TimeSelect({
 
 function priorityColor(level: number) {
   if (level <= 1) return 'bg-slate-300';
-  if (level === 2) return 'bg-teal-300';
-  if (level === 3) return 'bg-teal-500';
-  if (level === 4) return 'bg-emerald-600';
+  if (level === 2) return 'bg-teal-500';
+  if (level === 3) return 'bg-emerald-600';
   return 'bg-amber-500';
 }
 
 function priorityLabel(level: number) {
-  return ['低め', '控えめ', '標準', '高め', '最優先'][level - 1];
+  return ['低', '中', '高', '最優先'][Math.min(4, Math.max(1, level)) - 1];
 }
 
 function PriorityControl({
@@ -331,37 +330,38 @@ function PriorityControl({
   onChange: (value: number) => void;
   label: string;
 }) {
+  const displayValue = Math.min(4, Math.max(1, value));
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium text-slate-600">優先度</span>
         <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-800">
-          {value} / {priorityLabel(value)}
+          {priorityLabel(displayValue)}
         </span>
       </div>
       <div
         aria-label={label}
-        className="grid grid-cols-5 gap-1.5"
+        className="grid grid-cols-4 gap-1.5"
       >
-        {[1, 2, 3, 4, 5].map((level) => (
+        {[4, 3, 2, 1].map((level) => (
           <button
-            aria-pressed={value === level}
-            aria-label={`優先度${level}`}
+            aria-pressed={displayValue === level}
+            aria-label={`優先度 ${priorityLabel(level)}`}
             className={`h-8 rounded-md border transition ${
-              level <= value
+              level === displayValue
                 ? `${priorityColor(level)} border-transparent shadow-sm`
                 : 'border-slate-200 bg-slate-50'
-            } ${value === level ? 'ring-2 ring-emerald-900/20' : ''}`}
+            } ${displayValue === level ? 'ring-2 ring-emerald-900/20' : ''}`}
             key={level}
             onClick={() => onChange(level)}
             type="button"
           >
             <span
               className={`text-xs font-semibold ${
-                level <= value ? 'text-white' : 'text-slate-400'
+                level === displayValue ? 'text-white' : 'text-slate-500'
               }`}
             >
-              {level}
+              {priorityLabel(level)}
             </span>
           </button>
         ))}
@@ -2241,7 +2241,7 @@ export default function Home() {
                           <Sparkles className="size-4" />
                           {diagnosisBusy === 'itinerary'
                             ? 'AI診断中...'
-                            : 'AIで改善案を更新'}
+                            : 'AIで改善案を調査'}
                         </Button>
                         {diagnoses[currentTripId]?.itinerary && (
                           <Badge className="bg-emerald-100 text-emerald-800">
@@ -2321,12 +2321,7 @@ export default function Home() {
 
                 <Card className="rounded-lg border-emerald-950/10 bg-white shadow-sm">
                   <CardHeader>
-                    <CardTitle className="flex items-center justify-between gap-3">
-                      旅程
-                      <Badge className="bg-emerald-50 text-emerald-800">
-                        旅行スコア {itineraryDiagnosis.score}点
-                      </Badge>
-                    </CardTitle>
+                    <CardTitle>旅程</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex justify-end">
@@ -2338,8 +2333,21 @@ export default function Home() {
                     {itinerary.map((item) => (
                       <div
                         key={item.id}
-                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[minmax(190px,1.5fr)_132px_100px_minmax(220px,1.1fr)_auto]"
+                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[100px_minmax(190px,1.5fr)_132px_minmax(220px,1.1fr)_auto]"
                       >
+                        <div className="space-y-1.5">
+                          <FieldLabel>項目</FieldLabel>
+                          <SelectField
+                            label={`${item.title}カテゴリ`}
+                            options={itineraryCategoryOptions}
+                            value={item.category}
+                            onChange={(value) =>
+                              updateItinerary(item.id, {
+                                category: value as ItineraryItem['category'],
+                              })
+                            }
+                          />
+                        </div>
                         <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                           <FieldLabel>タイトル</FieldLabel>
                           <Input
@@ -2360,19 +2368,6 @@ export default function Home() {
                             value={item.date}
                             onChange={(event) =>
                               updateItinerary(item.id, { date: event.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <FieldLabel>項目</FieldLabel>
-                          <SelectField
-                            label={`${item.title}カテゴリ`}
-                            options={itineraryCategoryOptions}
-                            value={item.category}
-                            onChange={(value) =>
-                              updateItinerary(item.id, {
-                                category: value as ItineraryItem['category'],
-                              })
                             }
                           />
                         </div>
@@ -2883,7 +2878,7 @@ export default function Home() {
                   <CardContent className="space-y-3 text-sm text-slate-700">
                     <p className="text-3xl font-semibold text-slate-900">¥0</p>
                     <p>旅行診断 月1回</p>
-                    <p>基本旅行スコア</p>
+                    <p>基本旅行診断</p>
                     <p>宿相性診断</p>
                     <p>過去旅行3件</p>
                   </CardContent>
