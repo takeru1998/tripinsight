@@ -39,6 +39,16 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -52,7 +62,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { mockPreference } from '@/data/mockTrip';
 import {
   buildDynamicImprovements,
-  formatMinutes,
   isCurrentOrFutureTrip,
   normalizeItineraryDates,
   toMinutes,
@@ -603,7 +612,6 @@ export default function Home() {
     ItineraryItem[] | null
   >(null);
   const [selectedImprovementIds, setSelectedImprovementIds] = useState<string[]>([]);
-  const [improvementMinutes, setImprovementMinutes] = useState<Record<string, number>>({});
   const [diagnoses, setDiagnoses] = useState<DiagnosisMap>({});
   const [diagnosisBusy, setDiagnosisBusy] = useState<DiagnosisKind | null>(null);
   const [diagnosisMessage, setDiagnosisMessage] = useState('');
@@ -722,47 +730,21 @@ export default function Home() {
   const itineraryImprovementOptions = useMemo<ItineraryImprovementOption[]>(() => {
     const aiOptions = (itineraryDiagnosis.improvements ?? [])
       .filter((option) => itinerary.some((item) => item.id === option.targetItemId))
-      .map((option) => {
-        const target = itinerary.find((item) => item.id === option.targetItemId)!;
-        const startDelta = option.start
-          ? toMinutes(option.start) - toMinutes(target.start)
-          : 0;
-        const endDelta = option.end
-          ? toMinutes(option.end) - toMinutes(target.end)
-          : 0;
-        const defaultMinutes = Math.max(5, Math.abs(startDelta), Math.abs(endDelta));
-        return {
-          id: option.id,
-          title: option.title,
-          detail: option.detail,
-          defaultMinutes,
-          minuteLabel: '調整時間',
-          apply: (items: ItineraryItem[], minutes: number) => {
-            const ratio = Math.max(5, Math.min(180, minutes)) / defaultMinutes;
-            return items.map((item) =>
-              item.id === option.targetItemId
-                ? {
-                    ...item,
-                    ...(option.start
-                      ? {
-                          start: formatMinutes(
-                            toMinutes(item.start) + Math.round((startDelta * ratio) / 5) * 5,
-                          ),
-                        }
-                      : {}),
-                    ...(option.end
-                      ? {
-                          end: formatMinutes(
-                            toMinutes(item.end) + Math.round((endDelta * ratio) / 5) * 5,
-                          ),
-                        }
-                      : {}),
-                  }
-                : item,
-            );
-          },
-        };
-      });
+      .map((option) => ({
+        id: option.id,
+        title: option.title,
+        detail: option.detail,
+        apply: (items: ItineraryItem[]) =>
+          items.map((item) =>
+            item.id === option.targetItemId
+              ? {
+                  ...item,
+                  ...(option.start ? { start: option.start } : {}),
+                  ...(option.end ? { end: option.end } : {}),
+                }
+              : item,
+          ),
+      }));
     return aiOptions.length
       ? aiOptions
       : buildDynamicImprovements(itinerary, accommodation);
@@ -796,6 +778,10 @@ export default function Home() {
       .sort((a, b) => tripDateTime(a) - tripDateTime(b));
     return futureTrips[0] ?? null;
   }, [trips]);
+  const pendingDeleteTrip = useMemo(
+    () => trips.find((trip) => trip.id === pendingDeleteTripId) ?? null,
+    [trips, pendingDeleteTripId],
+  );
   const detailTrip = useMemo(
     () =>
       trips.find((trip) => trip.id === detailTripId) ??
@@ -1024,7 +1010,6 @@ export default function Home() {
     setRiskPlanTripId(null);
     setPreviousItinerary(null);
     setSelectedImprovementIds([]);
-    setImprovementMinutes({});
     setValidationErrors([]);
     setDiagnosisMessage('');
     setActiveTab('旅行登録');
@@ -1078,7 +1063,6 @@ export default function Home() {
     setDetailTripId(record.id);
     setPreviousItinerary(null);
     setSelectedImprovementIds([]);
-    setImprovementMinutes({});
     setValidationErrors([]);
     setDiagnosisMessage('');
     setActiveTab('旅行登録');
@@ -1117,7 +1101,6 @@ export default function Home() {
     setDetailReturnTab(returnTab);
     setPreviousItinerary(null);
     setSelectedImprovementIds([]);
-    setImprovementMinutes({});
     setActiveTab('旅行詳細');
     setSaveState(`${record.travel.name}の詳細を表示中`);
   }
@@ -1136,11 +1119,7 @@ export default function Home() {
     setPreviousItinerary(itinerary);
     setItinerary(
       selectedImprovements.reduce(
-        (items, option) =>
-          option.apply(
-            items,
-            improvementMinutes[option.id] ?? option.defaultMinutes,
-          ),
+        (items, option) => option.apply(items),
         itinerary,
       ),
     );
@@ -1154,7 +1133,6 @@ export default function Home() {
     setItinerary(previousItinerary);
     setPreviousItinerary(null);
     setSelectedImprovementIds([]);
-    setImprovementMinutes({});
     setSaveState('改善前の旅程へ戻しました');
   }
 
@@ -1236,7 +1214,6 @@ export default function Home() {
         setSelectedTripId(null);
         setPreviousItinerary(null);
         setSelectedImprovementIds([]);
-        setImprovementMinutes({});
       }
       if (riskDetailTripId === record.id) setRiskDetailTripId(null);
       if (detailTripId === record.id) setDetailTripId(null);
@@ -1607,34 +1584,14 @@ export default function Home() {
                                 <ShieldAlert className="size-4" />
                                 リスク診断
                               </Button>
-                              {pendingDeleteTripId === trip.id ? (
-                                <>
-                                  <Button
-                                    disabled={deletingTripId === trip.id}
-                                    onClick={() => void deleteTripRecord(trip)}
-                                    variant="destructive"
-                                  >
-                                    <Trash2 className="size-4" />
-                                    {deletingTripId === trip.id ? '削除中...' : '削除する'}
-                                  </Button>
-                                  <Button
-                                    disabled={deletingTripId === trip.id}
-                                    onClick={() => setPendingDeleteTripId(null)}
-                                    variant="outline"
-                                  >
-                                    キャンセル
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button
-                                  aria-label={`${trip.travel.name}を削除`}
-                                  onClick={() => setPendingDeleteTripId(trip.id)}
-                                  variant="outline"
-                                >
-                                  <Trash2 className="size-4" />
-                                  削除
-                                </Button>
-                              )}
+                              <Button
+                                aria-label={`${trip.travel.name}を削除`}
+                                onClick={() => setPendingDeleteTripId(trip.id)}
+                                variant="outline"
+                              >
+                                <Trash2 className="size-4" />
+                                削除
+                              </Button>
                             </div>
                           </div>
                         );
@@ -1643,8 +1600,16 @@ export default function Home() {
                   </CardContent>
                 </Card>
                 <Card className="rounded-lg border-emerald-950/8 bg-white/90 shadow-sm">
-                  <CardHeader>
-                    <CardTitle>直近旅行の診断サマリー</CardTitle>
+                  <CardHeader className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <CardTitle>{nearestTrip.travel.name}の旅程診断</CardTitle>
+                      <Badge variant="outline">
+                        {diagnoses[nearestTrip.id]?.itinerary ? 'AI診断' : '参考診断'}
+                      </Badge>
+                    </div>
+                    <p className="text-sm font-normal leading-relaxed text-slate-600">
+                      登録された旅程の時間、移動手段、観光量、宿のチェックイン・食事時間から、移動効率や疲労リスクなどを100点満点で評価しています。
+                    </p>
                   </CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
                     {Object.entries(topItineraryDiagnosis.categoryScores).map(
@@ -2265,7 +2230,7 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <p className="text-sm text-slate-700">
-                        改善案は複数選択できます。時間を調整し、選択した案をまとめて旅程に反映できます。
+                        改善案は複数選択できます。AIが提案した時間と内容を確認し、まとめて旅程に反映できます。
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <Button
@@ -2296,8 +2261,6 @@ export default function Home() {
                           </p>
                         ) : itineraryImprovementOptions.map((option) => {
                           const isChecked = selectedImprovementIds.includes(option.id);
-                          const minutes =
-                            improvementMinutes[option.id] ?? option.defaultMinutes;
                           return (
                             <div
                               className={`rounded-lg border p-3 transition ${
@@ -2330,25 +2293,6 @@ export default function Home() {
                                   </span>
                                 </span>
                               </label>
-                              <div className="mt-3 flex items-center gap-2 pl-7">
-                                <FieldLabel>{option.minuteLabel}</FieldLabel>
-                                <Input
-                                  aria-label={`${option.title}の${option.minuteLabel}`}
-                                  className="h-9 w-24 px-2 text-right"
-                                  max="180"
-                                  min="5"
-                                  onChange={(event) =>
-                                    setImprovementMinutes((current) => ({
-                                      ...current,
-                                      [option.id]: Number(event.target.value),
-                                    }))
-                                  }
-                                  step="5"
-                                  type="number"
-                                  value={minutes}
-                                />
-                                <span className="text-xs text-slate-500">分</span>
-                              </div>
                             </div>
                           );
                         })}
@@ -3000,6 +2944,36 @@ export default function Home() {
           )}
         </section>
       </div>
+      <AlertDialog
+        onOpenChange={(open) => {
+          if (!open && !deletingTripId) setPendingDeleteTripId(null);
+        }}
+        open={Boolean(pendingDeleteTrip)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>この旅行を削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{pendingDeleteTrip?.travel.name}」の旅行情報、宿、旅程、診断結果が削除されます。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(deletingTripId)}>
+              キャンセル
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!pendingDeleteTrip || Boolean(deletingTripId)}
+              onClick={() => {
+                if (pendingDeleteTrip) void deleteTripRecord(pendingDeleteTrip);
+              }}
+              variant="destructive"
+            >
+              <Trash2 className="size-4" />
+              {deletingTripId ? '削除中...' : '削除'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

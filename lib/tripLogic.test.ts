@@ -88,7 +88,7 @@ void test('validateTripRecord rejects invalid dates and time ranges', () => {
   assert.ok(errors.some((error) => error.includes('終了時間')));
 });
 
-void test('improvement minutes can be edited before applying an option', () => {
+void test('improvement applies the proposed time without manual editing', () => {
   const longVisit = {
     ...record.itinerary[0],
     id: 'sight-1',
@@ -101,6 +101,5 @@ void test('improvement minutes can be edited before applying an option', () => {
     (candidate) => candidate.id === 'shorten-sight-1',
   );
   assert.ok(option);
-  assert.equal(option.defaultMinutes, 20);
-  assert.equal(option.apply([longVisit], 35)[0].end, '11:25');
+  assert.equal(option.apply([longVisit])[0].end, '11:40');
 });

@@ -12,9 +12,7 @@ export type ItineraryImprovementOption = {
   id: string;
   title: string;
   detail: string;
-  defaultMinutes: number;
-  minuteLabel: string;
-  apply: (items: ItineraryItem[], minutes: number) => ItineraryItem[];
+  apply: (items: ItineraryItem[]) => ItineraryItem[];
 };
 
 export function parseLocalDate(value: string) {
@@ -139,16 +137,14 @@ export function buildDynamicImprovements(
       id: `buffer-${current.id}`,
       title: `${current.title}の前に余裕を追加`,
       detail: `${previous.title}との間を30分確保し、${formatMinutes(newStart)}開始へ変更`,
-      defaultMinutes: 30,
-      minuteLabel: '予定間の余裕',
-      apply: (items, minutes) =>
+      apply: (items) =>
         items.map((item) =>
           item.id === current.id
             ? (() => {
                 const duration = Math.max(5, toMinutes(item.end) - toMinutes(item.start));
                 const adjustedStart = Math.min(
                   23 * 60 + 55,
-                  toMinutes(previous.end) + normalizeMinutes(minutes),
+                  toMinutes(previous.end) + 30,
                 );
                 return {
                   ...item,
@@ -170,9 +166,7 @@ export function buildDynamicImprovements(
       id: `shorten-${longSightseeing.id}`,
       title: `${longSightseeing.title}の滞在を調整`,
       detail: '滞在を20分短縮し、後続予定への余裕を作る',
-      defaultMinutes: 20,
-      minuteLabel: '短縮時間',
-      apply: (items, minutes) =>
+      apply: (items) =>
         items.map((item) =>
           item.id === longSightseeing.id
             ? {
@@ -180,7 +174,7 @@ export function buildDynamicImprovements(
                 end: formatMinutes(
                   Math.max(
                     toMinutes(item.start) + 5,
-                    toMinutes(item.end) - normalizeMinutes(minutes),
+                    toMinutes(item.end) - 20,
                   ),
                 ),
               }
@@ -198,14 +192,12 @@ export function buildDynamicImprovements(
         id: `checkin-${checkIn.id}`,
         title: '宿到着を前倒し',
         detail: `${accommodation.dinner}の夕食まで60分確保する`,
-        defaultMinutes: 60,
-        minuteLabel: '夕食までの余裕',
-        apply: (items, minutes) =>
+        apply: (items) =>
           items.map((item) =>
             item.id === checkIn.id
               ? (() => {
                   const duration = Math.max(5, toMinutes(item.end) - toMinutes(item.start));
-                  const adjustedStart = Math.max(0, dinner - normalizeMinutes(minutes));
+                  const adjustedStart = Math.max(0, dinner - 60);
                   return {
                     ...item,
                     start: formatMinutes(adjustedStart),
@@ -229,11 +221,6 @@ export function toMinutes(time: string) {
 export function formatMinutes(value: number) {
   const minutes = Math.max(0, Math.min(23 * 60 + 55, value));
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-}
-
-function normalizeMinutes(value: number) {
-  if (!Number.isFinite(value)) return 5;
-  return Math.max(5, Math.min(180, Math.round(value / 5) * 5));
 }
 
 function compareItinerary(a: ItineraryItem, b: ItineraryItem) {
