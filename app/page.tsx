@@ -1332,8 +1332,8 @@ export default function Home() {
   }
 
   return (
-    <main className="trip-app min-h-dvh bg-[var(--app-bg)] text-slate-900">
-      <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-4 pt-[calc(env(safe-area-inset-top)+5.75rem)] sm:px-6 lg:px-8">
+    <main className="trip-app fixed inset-0 overflow-hidden bg-[var(--app-bg)] text-slate-900">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-col overflow-y-auto overscroll-y-contain px-4 pb-4 pt-[calc(env(safe-area-inset-top)+5.75rem)] sm:px-6 lg:px-8">
         <header className="fixed inset-x-0 top-0 z-50 border-b border-emerald-950/8 bg-[#fbfdfc]/98 pt-[env(safe-area-inset-top)] shadow-[0_8px_30px_rgb(15_23_42/7%)] backdrop-blur-xl">
           <div className="mx-auto w-full max-w-6xl px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between gap-3">
@@ -1516,7 +1516,7 @@ export default function Home() {
 
         <nav
           aria-label="メインメニュー"
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 rounded-t-lg border-x-0 border-b-0 border-t border-emerald-950/10 bg-[#fbfdfc]/98 px-1 py-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgb(15_23_42/12%)] backdrop-blur-xl sm:static sm:mx-0 sm:flex sm:gap-1 sm:rounded-lg sm:border sm:border-emerald-950/8 sm:bg-white/80 sm:px-2 sm:py-2 sm:shadow-sm"
+          className="fixed inset-x-0 bottom-0 z-40 mx-auto grid w-full max-w-6xl grid-cols-4 rounded-t-lg border-x-0 border-b-0 border-t border-emerald-950/10 bg-[#fbfdfc]/98 px-1 py-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgb(15_23_42/12%)] backdrop-blur-xl sm:flex sm:gap-1 sm:border-emerald-950/8 sm:px-2 sm:py-2"
         >
           {tabs.map((tab) => {
             const TabIcon = tabIcons[tab];
@@ -1556,7 +1556,7 @@ export default function Home() {
         </nav>
 
         <section
-          className={`grid flex-1 gap-4 pb-28 pt-4 sm:pb-5 ${
+          className={`grid flex-1 gap-4 pb-28 pt-4 sm:pb-20 ${
             activeTab === 'ホーム'
               ? 'lg:grid-cols-[minmax(0,1fr)_340px]'
               : 'lg:grid-cols-1'
