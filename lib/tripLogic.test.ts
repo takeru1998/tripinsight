@@ -110,6 +110,25 @@ void test('validateTripRecord rejects invalid dates and time ranges', () => {
   assert.ok(errors.some((error) => error.includes('終了時間')));
 });
 
+void test('validateTripRecord requires itinerary place and times', () => {
+  const errors = validateTripRecord({
+    ...record,
+    itinerary: [
+      {
+        ...record.itinerary[0],
+        category: '観光',
+        title: '展望台',
+        place: '',
+        start: '',
+        end: '',
+      },
+    ],
+  });
+  assert.ok(errors.some((error) => error.includes('場所')));
+  assert.ok(errors.some((error) => error.includes('開始時間')));
+  assert.ok(errors.some((error) => error.includes('終了時間')));
+});
+
 void test('improvement applies the proposed time without manual editing', () => {
   const longVisit = {
     ...record.itinerary[0],

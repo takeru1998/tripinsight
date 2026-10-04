@@ -112,12 +112,21 @@ export function validateTripRecord(record: ValidatableTripRecord) {
     } else if (!item.title.trim()) {
       errors.push(`旅程${index + 1}のタイトルを入力してください`);
     }
+    if (item.category !== '移動' && !item.place.trim()) {
+      errors.push(`${label}の場所を入力してください`);
+    }
     if (!itemDate) {
       errors.push(`${label}の日付を入力してください`);
     } else if (startDate && endDate && (itemDate < startDate || itemDate > endDate)) {
       errors.push(`${label}の日付は旅行期間内にしてください`);
     }
-    if (toMinutes(item.end) <= toMinutes(item.start)) {
+    if (!item.start) {
+      errors.push(`${label}の開始時間を入力してください`);
+    }
+    if (!item.end) {
+      errors.push(`${label}の終了時間を入力してください`);
+    }
+    if (item.start && item.end && toMinutes(item.end) <= toMinutes(item.start)) {
       errors.push(`${label}の終了時間は開始時間より後にしてください`);
     }
   });

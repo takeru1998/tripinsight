@@ -271,21 +271,35 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label className="text-xs font-semibold text-slate-500">{children}</label>;
 }
 
+function RequiredFieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <FieldLabel>
+      {children}
+      <span aria-hidden="true" className="ml-0.5 text-rose-600">
+        *
+      </span>
+      <span className="sr-only">（必須）</span>
+    </FieldLabel>
+  );
+}
+
 function SelectField({
   value,
   options,
   onChange,
   label,
+  className = '',
 }: {
   value: string;
   options: string[];
   onChange: (value: string) => void;
   label: string;
+  className?: string;
 }) {
   return (
     <select
       aria-label={label}
-      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
+      className={`h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50 ${className}`}
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -303,16 +317,18 @@ function TimeSelect({
   onChange,
   label,
   placeholder,
+  className = '',
 }: {
   value: string;
   onChange: (value: string) => void;
   label: string;
   placeholder?: string;
+  className?: string;
 }) {
   return (
     <select
       aria-label={label}
-      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50"
+      className={`h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50 ${className}`}
       onChange={(event) => onChange(event.target.value)}
       value={value}
     >
@@ -2652,59 +2668,92 @@ export default function Home() {
                         key={item.id}
                         className={`grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 ${
                           item.category === '移動'
-                            ? 'lg:grid-cols-[80px_minmax(150px,1fr)_minmax(150px,1fr)_136px_172px]'
-                            : 'lg:grid-cols-[80px_minmax(220px,1.7fr)_136px_172px]'
+                            ? 'lg:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_132px_minmax(220px,1fr)]'
+                            : 'lg:grid-cols-[minmax(220px,1.4fr)_minmax(180px,1fr)_auto]'
                         }`}
                       >
-                        <div className="flex items-center justify-end gap-2 sm:col-span-2 lg:col-span-full">
-                          <Button
-                            className="bg-teal-800 hover:bg-teal-700"
-                            onClick={saveCurrentTrip}
-                            size="sm"
-                          >
-                            <Save className="size-4" />
-                            保存
-                          </Button>
-                          <Button
-                            aria-label={`${item.title}を削除`}
-                            className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
-                            onClick={() => removeItineraryItem(item.id)}
-                            size="sm"
-                            variant="outline"
-                          >
-                            <Trash2 className="size-4" />
-                            削除
-                          </Button>
-                        </div>
-                        <div className="w-20 max-w-full space-y-1.5">
-                          <FieldLabel>項目</FieldLabel>
-                          <SelectField
-                            label={`${item.title}カテゴリ`}
-                            options={itineraryCategoryOptions}
-                            value={item.category}
-                            onChange={(value) => {
-                              const category = value as ItineraryItem['category'];
-                              updateItinerary(item.id, {
-                                category,
-                                ...(category === '移動'
-                                  ? {
-                                      title: '移動',
-                                      departurePlace:
-                                        item.departurePlace || item.place,
-                                      arrivalPlace: item.arrivalPlace || '',
-                                    }
-                                  : {}),
-                              });
-                            }}
-                          />
+                        <div className="col-span-full grid grid-cols-[3.5rem_6.5rem_4rem_4rem] gap-1.5 overflow-x-auto pb-1 sm:grid-cols-[5rem_8.5rem_5.25rem_5.25rem] sm:gap-2">
+                          <div className="min-w-0 space-y-1.5">
+                            <RequiredFieldLabel>項目</RequiredFieldLabel>
+                            <SelectField
+                              className="px-1 text-xs"
+                              label={`${item.title}カテゴリ`}
+                              options={itineraryCategoryOptions}
+                              value={item.category}
+                              onChange={(value) => {
+                                const category = value as ItineraryItem['category'];
+                                updateItinerary(item.id, {
+                                  category,
+                                  ...(category === '移動'
+                                    ? {
+                                        title: '移動',
+                                        departurePlace:
+                                          item.departurePlace || item.place,
+                                        arrivalPlace: item.arrivalPlace || '',
+                                      }
+                                    : {}),
+                                });
+                              }}
+                            />
+                          </div>
+                          <div className="min-w-0 space-y-1.5">
+                            <RequiredFieldLabel>日付</RequiredFieldLabel>
+                            <Input
+                              aria-label={`${item.title}日付`}
+                              className="px-1 text-xs"
+                              max={travel.endDate || undefined}
+                              min={travel.startDate || undefined}
+                              required
+                              type="date"
+                              value={item.date}
+                              onChange={(event) =>
+                                updateItinerary(item.id, { date: event.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="min-w-0 space-y-1.5">
+                            <RequiredFieldLabel>
+                              {item.category === '移動' ? '出発時間' : '開始時間'}
+                            </RequiredFieldLabel>
+                            <TimeSelect
+                              className="px-1 text-xs"
+                              label={
+                                item.category === '移動'
+                                  ? '出発時間'
+                                  : `${item.title}開始時間`
+                              }
+                              value={item.start}
+                              onChange={(value) =>
+                                updateItinerary(item.id, { start: value })
+                              }
+                            />
+                          </div>
+                          <div className="min-w-0 space-y-1.5">
+                            <RequiredFieldLabel>
+                              {item.category === '移動' ? '到着時間' : '終了時間'}
+                            </RequiredFieldLabel>
+                            <TimeSelect
+                              className="px-1 text-xs"
+                              label={
+                                item.category === '移動'
+                                  ? '到着時間'
+                                  : `${item.title}終了時間`
+                              }
+                              value={item.end}
+                              onChange={(value) =>
+                                updateItinerary(item.id, { end: value })
+                              }
+                            />
+                          </div>
                         </div>
                         {item.category === '移動' ? (
                           <>
                             <div className="space-y-1.5">
-                              <FieldLabel>出発場所</FieldLabel>
+                              <RequiredFieldLabel>出発場所</RequiredFieldLabel>
                               <Input
                                 aria-label="出発場所"
                                 placeholder="例: 東京駅"
+                                required
                                 value={item.departurePlace || ''}
                                 onChange={(event) =>
                                   updateMoveRoute(
@@ -2716,10 +2765,11 @@ export default function Home() {
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <FieldLabel>到着場所</FieldLabel>
+                              <RequiredFieldLabel>到着場所</RequiredFieldLabel>
                               <Input
                                 aria-label="到着場所"
                                 placeholder="例: 箱根湯本駅"
+                                required
                                 value={item.arrivalPlace || ''}
                                 onChange={(event) =>
                                   updateMoveRoute(
@@ -2733,9 +2783,10 @@ export default function Home() {
                           </>
                         ) : (
                         <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
-                          <FieldLabel>タイトル</FieldLabel>
+                          <RequiredFieldLabel>タイトル</RequiredFieldLabel>
                           <Input
                             aria-label={`${item.title}タイトル`}
+                            required
                             value={item.title}
                             onChange={(event) =>
                               updateItinerary(item.id, { title: event.target.value })
@@ -2743,59 +2794,13 @@ export default function Home() {
                           />
                         </div>
                         )}
-                        <div className="w-[8.5rem] max-w-full space-y-1.5">
-                          <FieldLabel>日付</FieldLabel>
-                          <Input
-                            aria-label={`${item.title}日付`}
-                            max={travel.endDate || undefined}
-                            min={travel.startDate || undefined}
-                            type="date"
-                            value={item.date}
-                            onChange={(event) =>
-                              updateItinerary(item.id, { date: event.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="grid w-[10.75rem] max-w-full grid-cols-2 gap-1.5">
-                          <div className="space-y-1.5">
-                            <FieldLabel>
-                              {item.category === '移動' ? '出発時間' : '開始時間'}
-                            </FieldLabel>
-                            <TimeSelect
-                              label={
-                                item.category === '移動'
-                                  ? '出発時間'
-                                  : `${item.title}開始時間`
-                              }
-                              value={item.start}
-                              onChange={(value) =>
-                                updateItinerary(item.id, { start: value })
-                              }
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <FieldLabel>
-                              {item.category === '移動' ? '到着時間' : '終了時間'}
-                            </FieldLabel>
-                            <TimeSelect
-                              label={
-                                item.category === '移動'
-                                  ? '到着時間'
-                                  : `${item.title}終了時間`
-                              }
-                              value={item.end}
-                              onChange={(value) =>
-                                updateItinerary(item.id, { end: value })
-                              }
-                            />
-                          </div>
-                        </div>
                         {item.category !== '移動' && (
                         <div className="space-y-1.5">
-                          <FieldLabel>場所</FieldLabel>
+                          <RequiredFieldLabel>場所</RequiredFieldLabel>
                           <Input
                             aria-label={`${item.title}場所`}
                             placeholder="場所"
+                            required
                             value={item.place}
                             onChange={(event) =>
                               updateItinerary(item.id, { place: event.target.value })
@@ -2829,7 +2834,7 @@ export default function Home() {
                           />
                         </div>
                         {item.category !== '移動' && (
-                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-4">
+                        <div className="space-y-1.5 sm:col-span-2 lg:col-span-full">
                           <FieldLabel>備考</FieldLabel>
                           <Textarea
                             aria-label={`${item.title}備考`}
@@ -2842,6 +2847,26 @@ export default function Home() {
                           />
                         </div>
                         )}
+                        <div className="col-span-full flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                          <Button
+                            className="bg-teal-800 hover:bg-teal-700"
+                            onClick={saveCurrentTrip}
+                            size="sm"
+                          >
+                            <Save className="size-4" />
+                            保存
+                          </Button>
+                          <Button
+                            aria-label={`${item.title}を削除`}
+                            className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                            onClick={() => removeItineraryItem(item.id)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <Trash2 className="size-4" />
+                            削除
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </CardContent>
