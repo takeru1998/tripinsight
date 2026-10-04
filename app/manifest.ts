@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: '旅行前に宿・旅程・当日のトラブルを診断するAIアプリ',
     start_url: '/',
     display: 'standalone',
-    background_color: '#eef4f1',
-    theme_color: '#064e3b',
+    background_color: '#fbfdfc',
+    theme_color: '#fbfdfc',
     lang: 'ja',
     orientation: 'portrait-primary',
     icons: [

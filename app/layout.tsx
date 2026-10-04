@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'TripInsight',
   },
   icons: {
@@ -36,7 +36,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#064e3b',
+  themeColor: '#fbfdfc',
 };
 
 export default function RootLayout({

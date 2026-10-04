@@ -9,7 +9,8 @@ const config: CapacitorConfig = {
     iosScheme: 'https',
   },
   ios: {
-    contentInset: 'automatic',
+    backgroundColor: '#fbfdfc',
+    contentInset: 'never',
     preferredContentMode: 'mobile',
     scrollEnabled: true,
   },

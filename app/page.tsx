@@ -1692,7 +1692,7 @@ export default function Home() {
 
         <nav
           aria-label="メインメニュー"
-          className="fixed inset-x-0 bottom-0 z-40 mx-auto grid w-full max-w-6xl grid-cols-4 rounded-t-lg border-x-0 border-b-0 border-t border-emerald-950/10 bg-[#fbfdfc]/98 px-1 py-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgb(15_23_42/12%)] backdrop-blur-xl sm:flex sm:gap-1 sm:border-emerald-950/8 sm:px-2 sm:py-2"
+          className="fixed inset-x-0 bottom-0 z-40 mx-auto grid w-full max-w-6xl grid-cols-4 rounded-t-lg border-x-0 border-b-0 border-t border-emerald-950/10 bg-[#fbfdfc]/98 px-1 pt-1.5 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgb(15_23_42/12%)] backdrop-blur-xl sm:flex sm:gap-1 sm:border-emerald-950/8 sm:px-2 sm:py-2"
         >
           {tabs.map((tab) => {
             const TabIcon = tabIcons[tab];
