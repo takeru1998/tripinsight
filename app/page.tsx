@@ -7,8 +7,13 @@ import {
   Check,
   ChevronRight,
   CircleHelp,
+  Cloud,
   CloudDownload,
+  CloudFog,
+  CloudLightning,
   CloudRain,
+  CloudSnow,
+  CloudSun,
   CloudUpload,
   ClipboardList,
   CreditCard,
@@ -81,6 +86,11 @@ import {
   signUp,
 } from '@/services/auth/cognitoAuth';
 import { awsConfig } from '@/services/aws/config';
+import {
+  fetchTripWeather,
+  type TripWeather,
+  type WeatherKind,
+} from '@/services/weather/openMeteoWeather';
 import type {
   Accommodation,
   HotelCompatibilityDiagnosis,
@@ -375,6 +385,19 @@ function PriorityControl({
   );
 }
 
+function WeatherGlyph({ kind }: { kind: WeatherKind }) {
+  const icons: Record<WeatherKind, React.ElementType> = {
+    sunny: CloudSun,
+    cloudy: Cloud,
+    fog: CloudFog,
+    rain: CloudRain,
+    snow: CloudSnow,
+    storm: CloudLightning,
+  };
+  const Icon = icons[kind];
+  return <Icon className="size-5" />;
+}
+
 function ScoreCard({
   title,
   value,
@@ -627,6 +650,9 @@ export default function Home() {
   const [pendingDeleteHotelId, setPendingDeleteHotelId] = useState<string | null>(null);
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState('端末内に自動保存');
+  const [tripWeather, setTripWeather] = useState<TripWeather | null>(null);
+  const [tripWeatherLoading, setTripWeatherLoading] = useState(false);
+  const [tripWeatherMessage, setTripWeatherMessage] = useState('');
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -903,6 +929,54 @@ export default function Home() {
       });
   }, [diagnoses, trips, tripFilter, tripSort]);
   const topSchedule = nearestTrip ? tripScheduleLabel(nearestTrip) : null;
+  const weatherLocation =
+    topAccommodation.location.trim() || topTravel.name.trim();
+  const weatherDate = topTravel.startDate
+    ? topTravel.startDate < new Date().toLocaleDateString('sv-SE')
+      ? new Date().toLocaleDateString('sv-SE')
+      : topTravel.startDate
+    : '';
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setTripWeather(null);
+    setTripWeatherMessage('');
+
+    if (!nearestTrip || !weatherDate) {
+      setTripWeatherLoading(false);
+      return () => controller.abort();
+    }
+    if (!weatherLocation) {
+      setTripWeatherLoading(false);
+      setTripWeatherMessage('宿の所在地を登録すると天気を表示できます');
+      return () => controller.abort();
+    }
+
+    const today = new Date().toLocaleDateString('sv-SE');
+    const forecastDays = Math.round(
+      (Date.parse(`${weatherDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) /
+        86_400_000,
+    );
+    if (forecastDays > 15) {
+      setTripWeatherLoading(false);
+      setTripWeatherMessage('天気予報は出発16日前から表示されます');
+      return () => controller.abort();
+    }
+
+    setTripWeatherLoading(true);
+    void fetchTripWeather(weatherLocation, weatherDate, controller.signal)
+      .then((result) => setTripWeather(result))
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setTripWeatherMessage(errorMessage(error));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setTripWeatherLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [nearestTrip, weatherDate, weatherLocation]);
+
   function updatePreference(key: PreferenceKey, value: number) {
     setPreference((current) => ({ ...current, [key]: value }));
   }
@@ -1458,6 +1532,80 @@ export default function Home() {
                   caption="天気・遅延・混雑に対する強さ"
                 />
               </div>
+              <section
+                aria-label="次の旅行先の天気"
+                className="border-t border-white/15 pt-4"
+              >
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-semibold text-white">
+                      <CloudSun className="size-4 text-[#c9f2e5]" />
+                      旅行先の天気
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-50">
+                      {tripWeather
+                        ? `${tripWeather.locationName} / ${tripWeather.date.replaceAll('-', '/')}`
+                        : weatherLocation || '場所未設定'}
+                    </p>
+                  </div>
+                  {tripWeather && (
+                    <a
+                      className="text-[10px] font-medium text-emerald-50 underline underline-offset-2"
+                      href="https://open-meteo.com/"
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Open-Meteo予報
+                    </a>
+                  )}
+                </div>
+                {tripWeatherLoading ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {['朝', '昼', '晩'].map((label) => (
+                      <div
+                        className="min-h-24 animate-pulse rounded-md bg-white/10 p-3"
+                        key={label}
+                      >
+                        <p className="text-xs font-semibold text-white">{label}</p>
+                        <p className="mt-3 text-xs text-emerald-50">天気を取得中...</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : tripWeather ? (
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    {tripWeather.periods.map((period) => (
+                      <div
+                        className="min-w-0 rounded-md bg-white/95 p-3 text-[#123f36] shadow-sm"
+                        key={period.key}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="text-xs font-semibold">
+                            {period.label}
+                            <span className="ml-1 font-normal text-slate-600">
+                              {period.time}
+                            </span>
+                          </p>
+                          <WeatherGlyph kind={period.kind} />
+                        </div>
+                        <p className="mt-2 text-lg font-semibold leading-none">
+                          {period.temperature}°
+                        </p>
+                        <p className="mt-1 truncate text-xs font-medium">
+                          {period.description}
+                        </p>
+                        <p className="mt-2 flex items-center gap-1 text-[11px] font-medium text-slate-700">
+                          <Umbrella className="size-3" />
+                          {period.precipitationProbability}%
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-md bg-white/10 px-3 py-3 text-sm text-emerald-50">
+                    {tripWeatherMessage || '天気予報を表示できません'}
+                  </p>
+                )}
+              </section>
             </CardContent>
           </Card>
 
