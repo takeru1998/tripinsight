@@ -2646,24 +2646,37 @@ export default function Home() {
                         <Plus className="size-4" />
                         予定を追加
                       </Button>
-                      <Button
-                        className="bg-teal-800 hover:bg-teal-700"
-                        onClick={saveCurrentTrip}
-                      >
-                        <Save className="size-4" />
-                        保存
-                      </Button>
                     </div>
                     {itinerary.map((item) => (
                       <div
                         key={item.id}
                         className={`grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 ${
                           item.category === '移動'
-                            ? 'lg:grid-cols-[88px_minmax(150px,1fr)_minmax(150px,1fr)_132px_176px_auto]'
-                            : 'lg:grid-cols-[88px_minmax(220px,1.7fr)_132px_176px_auto]'
+                            ? 'lg:grid-cols-[80px_minmax(150px,1fr)_minmax(150px,1fr)_136px_172px]'
+                            : 'lg:grid-cols-[80px_minmax(220px,1.7fr)_136px_172px]'
                         }`}
                       >
-                        <div className="space-y-1.5">
+                        <div className="flex items-center justify-end gap-2 sm:col-span-2 lg:col-span-full">
+                          <Button
+                            className="bg-teal-800 hover:bg-teal-700"
+                            onClick={saveCurrentTrip}
+                            size="sm"
+                          >
+                            <Save className="size-4" />
+                            保存
+                          </Button>
+                          <Button
+                            aria-label={`${item.title}を削除`}
+                            className="border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+                            onClick={() => removeItineraryItem(item.id)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <Trash2 className="size-4" />
+                            削除
+                          </Button>
+                        </div>
+                        <div className="w-20 max-w-full space-y-1.5">
                           <FieldLabel>項目</FieldLabel>
                           <SelectField
                             label={`${item.title}カテゴリ`}
@@ -2730,7 +2743,7 @@ export default function Home() {
                           />
                         </div>
                         )}
-                        <div className="space-y-1.5">
+                        <div className="w-[8.5rem] max-w-full space-y-1.5">
                           <FieldLabel>日付</FieldLabel>
                           <Input
                             aria-label={`${item.title}日付`}
@@ -2743,7 +2756,7 @@ export default function Home() {
                             }
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-1.5">
+                        <div className="grid w-[10.75rem] max-w-full grid-cols-2 gap-1.5">
                           <div className="space-y-1.5">
                             <FieldLabel>
                               {item.category === '移動' ? '出発時間' : '開始時間'}
@@ -2777,15 +2790,6 @@ export default function Home() {
                             />
                           </div>
                         </div>
-                        <Button
-                          aria-label={`${item.title}を削除`}
-                          className="self-end justify-self-end text-rose-700 hover:text-rose-800"
-                          onClick={() => removeItineraryItem(item.id)}
-                          size="icon"
-                          variant="ghost"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
                         {item.category !== '移動' && (
                         <div className="space-y-1.5">
                           <FieldLabel>場所</FieldLabel>
