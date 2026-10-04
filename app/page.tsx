@@ -149,8 +149,8 @@ const emptyTravel: Travel = {
   origin: '',
   transport: '電車',
   companion: '一人',
-  people: 1,
-  budget: 0,
+  people: null,
+  budget: null,
   memo: '',
 };
 
@@ -239,7 +239,8 @@ const transportModeOptions: NonNullable<ItineraryItem['transportMode']>[] = [
   'その他',
 ];
 
-function currency(value: number) {
+function currency(value: number | null | undefined) {
+  if (value === null || value === undefined) return '未設定';
   return new Intl.NumberFormat('ja-JP').format(value);
 }
 
@@ -349,7 +350,7 @@ function PriorityControl({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-xs">
-        <span className="font-medium text-slate-600">優先度</span>
+        <span className="font-medium text-slate-600">予定の優先度</span>
         <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-800">
           {priorityLabel(displayValue)}
         </span>
@@ -1070,6 +1071,32 @@ export default function Home() {
     );
   }
 
+  function updateMoveRoute(
+    id: string,
+    field: 'departurePlace' | 'arrivalPlace',
+    value: string,
+  ) {
+    setItinerary((items) =>
+      items.map((item) => {
+        if (item.id !== id) return item;
+        const departurePlace =
+          field === 'departurePlace' ? value : item.departurePlace || '';
+        const arrivalPlace =
+          field === 'arrivalPlace' ? value : item.arrivalPlace || '';
+        return {
+          ...item,
+          departurePlace,
+          arrivalPlace,
+          place: arrivalPlace || departurePlace,
+          title:
+            departurePlace && arrivalPlace
+              ? `${departurePlace} → ${arrivalPlace}`
+              : '移動',
+        };
+      }),
+    );
+  }
+
   function addItineraryItem() {
     setItinerary((items) => [
       ...items,
@@ -1500,7 +1527,8 @@ export default function Home() {
                     <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-emerald-100/80">
                       <MapPin className="size-4" />
                       {topTravel.origin || '出発地未設定'}発 /{' '}
-                      {topTravel.companion} / {topTravel.people}名
+                      {topTravel.companion} / {topTravel.people ?? '人数未設定'}
+                      {topTravel.people !== null && '名'}
                     </p>
                     <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-emerald-100/80">
                       <CalendarDays className="size-4" />
@@ -1807,7 +1835,10 @@ export default function Home() {
                               <p className="text-xs leading-relaxed text-slate-500">
                                 {trip.travel.startDate || '日程未設定'} -{' '}
                                 {trip.travel.endDate || '日程未設定'} /{' '}
-                                {trip.travel.transport} / {trip.travel.people}名
+                                {trip.travel.transport} /{' '}
+                                {trip.travel.people === null
+                                  ? '人数未設定'
+                                  : `${trip.travel.people}名`}
                               </p>
                               <p className="text-xs leading-relaxed text-slate-500">
                                 {trip.accommodation.name || '宿未設定'} / 旅程{' '}
@@ -1948,7 +1979,9 @@ export default function Home() {
                           <p className="text-xs text-slate-500">出発・人数</p>
                           <p className="mt-1 text-sm font-medium text-slate-900">
                             {detailTrip.travel.origin || '未設定'} /{' '}
-                            {detailTrip.travel.people}名
+                            {detailTrip.travel.people === null
+                              ? '人数未設定'
+                              : `${detailTrip.travel.people}名`}
                           </p>
                         </div>
                         <div className="rounded-lg bg-slate-50 p-3">
@@ -1960,7 +1993,9 @@ export default function Home() {
                         <div className="rounded-lg bg-slate-50 p-3">
                           <p className="text-xs text-slate-500">予算</p>
                           <p className="mt-1 text-sm font-medium text-slate-900">
-                            ¥{currency(detailTrip.travel.budget)}
+                            {detailTrip.travel.budget === null
+                              ? '未設定'
+                              : `¥${currency(detailTrip.travel.budget)}`}
                           </p>
                         </div>
                       </div>
@@ -2409,13 +2444,23 @@ export default function Home() {
                         <FieldLabel>人数</FieldLabel>
                         <Input
                           className="px-2 text-center"
+                          inputMode="numeric"
                           min="1"
+                          onKeyDown={(event) => {
+                            if (['e', 'E', '+', '-', '.'].includes(event.key)) {
+                              event.preventDefault();
+                            }
+                          }}
+                          step="1"
                           type="number"
-                          value={travel.people}
+                          value={travel.people ?? ''}
                           onChange={(event) =>
                             setTravel({
                               ...travel,
-                              people: Number(event.target.value),
+                              people:
+                                event.target.value === ''
+                                  ? null
+                                  : Number(event.target.value),
                             })
                           }
                         />
@@ -2424,13 +2469,23 @@ export default function Home() {
                         <FieldLabel>旅行予算</FieldLabel>
                         <Input
                           className="px-2"
+                          inputMode="numeric"
                           min="0"
+                          onKeyDown={(event) => {
+                            if (['e', 'E', '+', '-', '.'].includes(event.key)) {
+                              event.preventDefault();
+                            }
+                          }}
+                          step="1"
                           type="number"
-                          value={travel.budget}
+                          value={travel.budget ?? ''}
                           onChange={(event) =>
                             setTravel({
                               ...travel,
-                              budget: Number(event.target.value),
+                              budget:
+                                event.target.value === ''
+                                  ? null
+                                  : Number(event.target.value),
                             })
                           }
                         />
@@ -2486,11 +2541,15 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <p className="text-sm text-slate-700">
-                        改善案は複数選択できます。AIが提案した時間と内容を確認し、まとめて旅程に反映できます。
+                        {itinerary.length === 0
+                          ? '旅程を入力してください'
+                          : '改善案は複数選択できます。AIが提案した時間と内容を確認し、まとめて旅程に反映できます。'}
                       </p>
                       <div className="flex flex-wrap items-center gap-2">
                         <Button
-                          disabled={diagnosisBusy === 'itinerary'}
+                          disabled={
+                            diagnosisBusy === 'itinerary' || itinerary.length === 0
+                          }
                           onClick={() => runAiDiagnosis('itinerary')}
                           variant="outline"
                         >
@@ -2513,7 +2572,9 @@ export default function Home() {
                       <div className="grid gap-2 text-sm text-slate-700">
                         {itineraryImprovementOptions.length === 0 ? (
                           <p className="rounded-lg border border-teal-100 bg-white/70 p-3">
-                            現在の旅程から自動適用できる改善案は見つかりませんでした。
+                            {itinerary.length === 0
+                              ? '旅程を入力してください'
+                              : '現在の旅程から自動適用できる改善案は見つかりませんでした。'}
                           </p>
                         ) : itineraryImprovementOptions.map((option) => {
                           const isChecked = selectedImprovementIds.includes(option.id);
@@ -2596,7 +2657,11 @@ export default function Home() {
                     {itinerary.map((item) => (
                       <div
                         key={item.id}
-                        className="grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 lg:grid-cols-[88px_minmax(220px,1.7fr)_132px_176px_auto]"
+                        className={`grid gap-3 rounded-lg border border-slate-200 p-3 sm:grid-cols-2 ${
+                          item.category === '移動'
+                            ? 'lg:grid-cols-[88px_minmax(150px,1fr)_minmax(150px,1fr)_132px_176px_auto]'
+                            : 'lg:grid-cols-[88px_minmax(220px,1.7fr)_132px_176px_auto]'
+                        }`}
                       >
                         <div className="space-y-1.5">
                           <FieldLabel>項目</FieldLabel>
@@ -2604,13 +2669,56 @@ export default function Home() {
                             label={`${item.title}カテゴリ`}
                             options={itineraryCategoryOptions}
                             value={item.category}
-                            onChange={(value) =>
+                            onChange={(value) => {
+                              const category = value as ItineraryItem['category'];
                               updateItinerary(item.id, {
-                                category: value as ItineraryItem['category'],
-                              })
-                            }
+                                category,
+                                ...(category === '移動'
+                                  ? {
+                                      title: '移動',
+                                      departurePlace:
+                                        item.departurePlace || item.place,
+                                      arrivalPlace: item.arrivalPlace || '',
+                                    }
+                                  : {}),
+                              });
+                            }}
                           />
                         </div>
+                        {item.category === '移動' ? (
+                          <>
+                            <div className="space-y-1.5">
+                              <FieldLabel>出発場所</FieldLabel>
+                              <Input
+                                aria-label="出発場所"
+                                placeholder="例: 東京駅"
+                                value={item.departurePlace || ''}
+                                onChange={(event) =>
+                                  updateMoveRoute(
+                                    item.id,
+                                    'departurePlace',
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <FieldLabel>到着場所</FieldLabel>
+                              <Input
+                                aria-label="到着場所"
+                                placeholder="例: 箱根湯本駅"
+                                value={item.arrivalPlace || ''}
+                                onChange={(event) =>
+                                  updateMoveRoute(
+                                    item.id,
+                                    'arrivalPlace',
+                                    event.target.value,
+                                  )
+                                }
+                              />
+                            </div>
+                          </>
+                        ) : (
                         <div className="space-y-1.5 sm:col-span-2 lg:col-span-1">
                           <FieldLabel>タイトル</FieldLabel>
                           <Input
@@ -2621,6 +2729,7 @@ export default function Home() {
                             }
                           />
                         </div>
+                        )}
                         <div className="space-y-1.5">
                           <FieldLabel>日付</FieldLabel>
                           <Input
@@ -2636,9 +2745,15 @@ export default function Home() {
                         </div>
                         <div className="grid grid-cols-2 gap-1.5">
                           <div className="space-y-1.5">
-                            <FieldLabel>開始時間</FieldLabel>
+                            <FieldLabel>
+                              {item.category === '移動' ? '出発時間' : '開始時間'}
+                            </FieldLabel>
                             <TimeSelect
-                              label={`${item.title}開始時間`}
+                              label={
+                                item.category === '移動'
+                                  ? '出発時間'
+                                  : `${item.title}開始時間`
+                              }
                               value={item.start}
                               onChange={(value) =>
                                 updateItinerary(item.id, { start: value })
@@ -2646,9 +2761,15 @@ export default function Home() {
                             />
                           </div>
                           <div className="space-y-1.5">
-                            <FieldLabel>終了時間</FieldLabel>
+                            <FieldLabel>
+                              {item.category === '移動' ? '到着時間' : '終了時間'}
+                            </FieldLabel>
                             <TimeSelect
-                              label={`${item.title}終了時間`}
+                              label={
+                                item.category === '移動'
+                                  ? '到着時間'
+                                  : `${item.title}終了時間`
+                              }
                               value={item.end}
                               onChange={(value) =>
                                 updateItinerary(item.id, { end: value })
@@ -2665,6 +2786,7 @@ export default function Home() {
                         >
                           <Trash2 className="size-4" />
                         </Button>
+                        {item.category !== '移動' && (
                         <div className="space-y-1.5">
                           <FieldLabel>場所</FieldLabel>
                           <Input
@@ -2676,6 +2798,7 @@ export default function Home() {
                             }
                           />
                         </div>
+                        )}
                         {item.category === '移動' && (
                           <div className="space-y-1.5">
                             <FieldLabel>移動手段</FieldLabel>
@@ -2701,6 +2824,7 @@ export default function Home() {
                             }
                           />
                         </div>
+                        {item.category !== '移動' && (
                         <div className="space-y-1.5 sm:col-span-2 lg:col-span-4">
                           <FieldLabel>備考</FieldLabel>
                           <Textarea
@@ -2713,6 +2837,7 @@ export default function Home() {
                             }
                           />
                         </div>
+                        )}
                       </div>
                     ))}
                   </CardContent>
@@ -3334,7 +3459,10 @@ export default function Home() {
                 </p>
                 <p className="flex items-center gap-2 text-slate-600">
                   <Train className="size-4 text-teal-700" />
-                  {topTravel.transport} / 予算 ¥{currency(topTravel.budget)}
+                  {topTravel.transport} / 予算{' '}
+                  {topTravel.budget === null
+                    ? '未設定'
+                    : `¥${currency(topTravel.budget)}`}
                 </p>
                 <p className="rounded-lg bg-slate-50 p-3 text-slate-600">
                   {topTravel.memo || 'メモはまだ登録されていません。'}

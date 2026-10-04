@@ -61,7 +61,19 @@ export function normalizeItineraryDates(
   items: Array<ItineraryItem | (Omit<ItineraryItem, 'date'> & { date?: string })>,
   fallbackDate: string,
 ): ItineraryItem[] {
-  return items.map((item) => ({ ...item, date: item.date || fallbackDate }));
+  return items.map((item) => ({
+    ...item,
+    date: item.date || fallbackDate,
+    departurePlace:
+      item.category === '移動' ? item.departurePlace || item.place : item.departurePlace,
+  }));
+}
+
+function itineraryLabel(item: ItineraryItem, index?: number) {
+  if (item.category === '移動') {
+    return `${item.departurePlace || '出発場所'} → ${item.arrivalPlace || '到着場所'}`;
+  }
+  return item.title.trim() || `旅程${(index ?? 0) + 1}`;
 }
 
 export function validateTripRecord(record: ValidatableTripRecord) {
@@ -77,10 +89,10 @@ export function validateTripRecord(record: ValidatableTripRecord) {
     errors.push('帰宅日は出発日以降にしてください');
   }
   if (!travel.origin.trim()) errors.push('出発地を入力してください');
-  if (!Number.isInteger(travel.people) || travel.people < 1) {
+  if (travel.people === null || !Number.isInteger(travel.people) || travel.people < 1) {
     errors.push('人数は1人以上で入力してください');
   }
-  if (!Number.isFinite(travel.budget) || travel.budget < 0) {
+  if (travel.budget === null || !Number.isFinite(travel.budget) || travel.budget < 0) {
     errors.push('旅行予算は0円以上で入力してください');
   }
   if (!Number.isFinite(accommodation.price) || accommodation.price < 0) {
@@ -88,9 +100,18 @@ export function validateTripRecord(record: ValidatableTripRecord) {
   }
 
   itinerary.forEach((item, index) => {
-    const label = item.title.trim() || `旅程${index + 1}`;
+    const label = itineraryLabel(item, index);
     const itemDate = parseLocalDate(item.date);
-    if (!item.title.trim()) errors.push(`旅程${index + 1}のタイトルを入力してください`);
+    if (item.category === '移動') {
+      if (!item.departurePlace?.trim()) {
+        errors.push(`旅程${index + 1}の出発場所を入力してください`);
+      }
+      if (!item.arrivalPlace?.trim()) {
+        errors.push(`旅程${index + 1}の到着場所を入力してください`);
+      }
+    } else if (!item.title.trim()) {
+      errors.push(`旅程${index + 1}のタイトルを入力してください`);
+    }
     if (!itemDate) {
       errors.push(`${label}の日付を入力してください`);
     } else if (startDate && endDate && (itemDate < startDate || itemDate > endDate)) {
@@ -111,7 +132,9 @@ export function validateTripRecord(record: ValidatableTripRecord) {
     const sorted = [...items].sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
     sorted.slice(1).forEach((item, index) => {
       if (toMinutes(item.start) < toMinutes(sorted[index].end)) {
-        errors.push(`${date}の「${sorted[index].title}」と「${item.title}」の時間が重複しています`);
+        errors.push(
+          `${date}の「${itineraryLabel(sorted[index])}」と「${itineraryLabel(item)}」の時間が重複しています`,
+        );
       }
     });
   });

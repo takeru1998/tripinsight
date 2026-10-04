@@ -41,6 +41,8 @@ const record: ValidatableTripRecord = {
       date: '2026-10-10',
       title: '移動',
       place: '京都駅',
+      departurePlace: '東京駅',
+      arrivalPlace: '京都駅',
       start: '10:00',
       end: '11:00',
       category: '移動',
@@ -71,11 +73,31 @@ void test('tripScheduleLabel distinguishes upcoming, active, and finished trips'
 });
 
 void test('normalizeItineraryDates migrates old itinerary data', () => {
+  const {
+    departurePlace: _departurePlace,
+    arrivalPlace: _arrivalPlace,
+    ...legacyItem
+  } = record.itinerary[0];
   const migrated = normalizeItineraryDates(
-    [{ ...record.itinerary[0], date: undefined }],
+    [{ ...legacyItem, date: undefined }],
     '2026-10-10',
   );
   assert.equal(migrated[0].date, '2026-10-10');
+  assert.equal(migrated[0].departurePlace, '京都駅');
+});
+
+void test('validateTripRecord requires numeric trip values and move locations', () => {
+  const errors = validateTripRecord({
+    ...record,
+    travel: { ...record.travel, people: null, budget: null },
+    itinerary: [
+      { ...record.itinerary[0], departurePlace: '', arrivalPlace: '' },
+    ],
+  });
+  assert.ok(errors.some((error) => error.includes('人数')));
+  assert.ok(errors.some((error) => error.includes('旅行予算')));
+  assert.ok(errors.some((error) => error.includes('出発場所')));
+  assert.ok(errors.some((error) => error.includes('到着場所')));
 });
 
 void test('validateTripRecord rejects invalid dates and time ranges', () => {

@@ -22,8 +22,8 @@ export type Travel = {
   origin: string;
   transport: '車' | '電車' | '飛行機' | 'その他';
   companion: '一人' | 'カップル' | '夫婦' | '友人' | '家族';
-  people: number;
-  budget: number;
+  people: number | null;
+  budget: number | null;
   memo: string;
 };
 
@@ -44,6 +44,8 @@ export type ItineraryItem = {
   date: string;
   title: string;
   place: string;
+  departurePlace?: string;
+  arrivalPlace?: string;
   start: string;
   end: string;
   category:
